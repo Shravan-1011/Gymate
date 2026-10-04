@@ -25,6 +25,13 @@ const GYMATE_APP_VERSION =
  * ========================================
  * TABLE DEFINITIONS
  * ========================================
+ *
+ * These are the user-owned tables that
+ * belong in a Gymate backup.
+ *
+ * Password credentials are intentionally
+ * excluded.
+ * ========================================
  */
 
 const BACKUP_TABLES = {
@@ -115,6 +122,7 @@ function requireString(
   value: unknown,
   field: string
 ): string {
+
   if (
     typeof value !== 'string' ||
     !value.trim()
@@ -217,6 +225,12 @@ function requireRowOrNull(
 /*
  * ========================================
  * VALIDATE BACKUP
+ * ========================================
+ *
+ * This validates the complete structure
+ * before SQLite is touched.
+ *
+ * Existing V1 backups remain compatible.
  * ========================================
  */
 
@@ -327,8 +341,51 @@ export function validateGymateBackup(
 
 
   /*
+   * Trainer sprite was added after
+   * the original backup format.
+   *
+   * Therefore it is OPTIONAL so old
+   * .gymate files remain valid.
+   */
+
+  let trainerSpriteId:
+    string | null | undefined;
+
+  if (
+    profile.trainerSpriteId ===
+    undefined
+  ) {
+
+    trainerSpriteId =
+      undefined;
+
+  } else if (
+    profile.trainerSpriteId === null
+  ) {
+
+    trainerSpriteId =
+      null;
+
+  } else if (
+    typeof profile.trainerSpriteId ===
+    'string'
+  ) {
+
+    trainerSpriteId =
+      profile.trainerSpriteId;
+
+  } else {
+
+    throw new Error(
+      'INVALID_BACKUP_TRAINER_SPRITE_ID'
+    );
+
+  }
+
+
+  /*
    * ======================================
-   * SECTIONS
+   * PROFILE DETAILS
    * ======================================
    */
 
@@ -338,11 +395,25 @@ export function validateGymateBackup(
       'profile_details'
     );
 
+
+  /*
+   * ======================================
+   * PROGRESSION
+   * ======================================
+   */
+
   const progression =
     requireRowOrNull(
       backup.progression,
       'progression'
     );
+
+
+  /*
+   * ======================================
+   * XP
+   * ======================================
+   */
 
   const xpTransactions =
     requireRows(
@@ -601,6 +672,7 @@ export function validateGymateBackup(
    */
 
   return {
+
     format:
       GYMATE_BACKUP_FORMAT,
 
@@ -614,10 +686,18 @@ export function validateGymateBackup(
       backup.createdAt as string,
 
     profile: {
+
       id:
         profileId,
 
       username,
+
+      ...(trainerSpriteId !==
+        undefined
+        ? {
+            trainerSpriteId,
+          }
+        : {}),
 
       createdAt:
         profileCreatedAt,
@@ -633,6 +713,7 @@ export function validateGymateBackup(
     xpTransactions,
 
     workouts: {
+
       sessions:
         workoutSessions,
 
@@ -646,6 +727,7 @@ export function validateGymateBackup(
     customExercises,
 
     pokemon: {
+
       starterState,
 
       currency,
@@ -668,6 +750,7 @@ export function validateGymateBackup(
     },
 
     diet: {
+
       templates:
         dietTemplates,
 
@@ -680,6 +763,7 @@ export function validateGymateBackup(
     },
 
     activity: {
+
       steps,
 
       runningSessions,
@@ -703,6 +787,8 @@ async function getProfile(
 ): Promise<{
   id: string;
   username: string;
+  trainer_sprite_id:
+    string | null;
   created_at: string;
   updated_at: string;
 } | null> {
@@ -715,6 +801,7 @@ async function getProfile(
       SELECT
         id,
         username,
+        trainer_sprite_id,
         created_at,
         updated_at
       FROM profiles
@@ -723,46 +810,6 @@ async function getProfile(
     `,
     profileId
   );
-}
-
-
-/*
- * ========================================
- * CHECK PROFILE COLUMN
- * ========================================
- *
- * Used only for tables that are expected
- * to contain profile_id.
- * ========================================
- */
-
-async function assertProfileColumn(
-  table: string
-): Promise<void> {
-
-  const db =
-    await getDatabase();
-
-  const columns =
-    await db.getAllAsync<{
-      name: string;
-    }>(
-      `
-        PRAGMA table_info(${table});
-      `
-    );
-
-  const hasProfileId =
-    columns.some(
-      column =>
-        column.name === 'profile_id'
-    );
-
-  if (!hasProfileId) {
-    throw new Error(
-      `BACKUP_SCHEMA_ERROR:${table}:profile_id`
-    );
-  }
 }
 
 
@@ -779,10 +826,6 @@ async function getSingleRow(
 
   const db =
     await getDatabase();
-
-  await assertProfileColumn(
-    table
-  );
 
   return (
     await db.getFirstAsync(
@@ -811,10 +854,6 @@ async function getRows(
 
   const db =
     await getDatabase();
-
-  await assertProfileColumn(
-    table
-  );
 
   const rows =
     await db.getAllAsync(
@@ -846,13 +885,6 @@ export async function exportGymateBackup(
     );
   }
 
-
-  /*
-   * ======================================
-   * LOAD PROFILE
-   * ======================================
-   */
-
   const profile =
     await getProfile(
       profileId
@@ -863,16 +895,6 @@ export async function exportGymateBackup(
       'PROFILE_NOT_FOUND'
     );
   }
-
-
-  /*
-   * ======================================
-   * LOAD DATABASE
-   * ======================================
-   */
-
-  const db =
-    await getDatabase();
 
 
   /*
@@ -912,14 +934,16 @@ export async function exportGymateBackup(
       profileId
     );
 
-
   /*
    * workout_exercises does NOT contain
-   * profile_id.
+   * profile_id in the current schema.
    *
-   * It belongs to workout_sessions through
-   * workout_id.
+   * Therefore it must be loaded through
+   * workout_sessions.
    */
+
+  const db =
+    await getDatabase();
 
   const workoutExercises =
     await db.getAllAsync(
@@ -938,11 +962,11 @@ export async function exportGymateBackup(
 
 
   /*
-   * workout_sets does NOT contain
+   * workout_sets also does not contain
    * profile_id.
    *
-   * It belongs to workout_exercises through
-   * workout_exercise_id.
+   * It is reached through the workout
+   * exercise → workout session chain.
    */
 
   const workoutSets =
@@ -1057,15 +1081,6 @@ export async function exportGymateBackup(
       profileId
     );
 
-
-  /*
-   * diet_template_foods does NOT contain
-   * profile_id.
-   *
-   * It belongs to diet_templates through
-   * template_id.
-   */
-
   const dietTemplateFoods =
     await db.getAllAsync(
       `
@@ -1081,21 +1096,11 @@ export async function exportGymateBackup(
       profileId
     ) as BackupRow[];
 
-
   const dailyNutrition =
     await getRows(
       BACKUP_TABLES.dailyNutrition,
       profileId
     );
-
-
-  /*
-   * daily_nutrition_foods does NOT contain
-   * profile_id.
-   *
-   * It belongs to daily_nutrition through
-   * daily_nutrition_id.
-   */
 
   const dailyFoods =
     await db.getAllAsync(
@@ -1151,6 +1156,7 @@ export async function exportGymateBackup(
    */
 
   return {
+
     format:
       GYMATE_BACKUP_FORMAT,
 
@@ -1164,11 +1170,16 @@ export async function exportGymateBackup(
       new Date().toISOString(),
 
     profile: {
+
       id:
         profile.id,
 
       username:
         profile.username,
+
+      trainerSpriteId:
+        profile.trainer_sprite_id ??
+        null,
 
       createdAt:
         profile.created_at,
@@ -1184,6 +1195,7 @@ export async function exportGymateBackup(
     xpTransactions,
 
     workouts: {
+
       sessions:
         workoutSessions,
 
@@ -1197,6 +1209,7 @@ export async function exportGymateBackup(
     customExercises,
 
     pokemon: {
+
       starterState,
 
       currency,
@@ -1219,6 +1232,7 @@ export async function exportGymateBackup(
     },
 
     diet: {
+
       templates:
         dietTemplates,
 
@@ -1231,6 +1245,7 @@ export async function exportGymateBackup(
     },
 
     activity: {
+
       steps,
 
       runningSessions,
@@ -1254,6 +1269,7 @@ function countBackupRecords(
 ): number {
 
   return (
+
     1 +
 
     (backup.profileDetails
@@ -1298,6 +1314,7 @@ function countBackupRecords(
     backup.activity.runningSessions.length +
     backup.activity.todoSlots.length +
     backup.activity.dailyTodos.length
+
   );
 }
 
@@ -1352,7 +1369,54 @@ async function insertRow(
 
 /*
  * ========================================
+ * REMAP PROFILE ID
+ * ========================================
+ *
+ * This is the key part of phone-to-phone
+ * migration.
+ *
+ * The source backup contains the OLD
+ * profile ID.
+ *
+ * The destination device has a NEW
+ * profile ID.
+ *
+ * Every row containing profile_id is
+ * redirected to the destination profile.
+ * ========================================
+ */
+
+function remapProfileId(
+  row: BackupRow,
+  sourceProfileId: string,
+  destinationProfileId: string
+): BackupRow {
+
+  if (
+    row.profile_id ===
+    sourceProfileId
+  ) {
+    return {
+      ...row,
+
+      profile_id:
+        destinationProfileId,
+    };
+  }
+
+  return {
+    ...row,
+  };
+}
+
+
+/*
+ * ========================================
  * DELETE EXISTING PROFILE DATA
+ * ========================================
+ *
+ * Foreign-key order matters.
+ * Children are deleted before parents.
  * ========================================
  */
 
@@ -1452,13 +1516,13 @@ async function clearProfileData(
 
   /*
    * ======================================
-   * POKÉMON
+   * POKÉMON CHILDREN
    * ======================================
    */
 
   await db.runAsync(
     `
-      DELETE FROM pokemon_team
+      DELETE FROM user_gym_badges
       WHERE profile_id = ?;
     `,
     profileId
@@ -1474,14 +1538,6 @@ async function clearProfileData(
 
   await db.runAsync(
     `
-      DELETE FROM user_gym_badges
-      WHERE profile_id = ?;
-    `,
-    profileId
-  );
-
-  await db.runAsync(
-    `
       DELETE FROM pokemon_streak_shard_grants
       WHERE profile_id = ?;
     `,
@@ -1490,7 +1546,23 @@ async function clearProfileData(
 
   await db.runAsync(
     `
-      DELETE FROM pokemon_shard_grants
+      DELETE FROM pokedex_entries
+      WHERE profile_id = ?;
+    `,
+    profileId
+  );
+
+  await db.runAsync(
+    `
+      DELETE FROM pokemon_team
+      WHERE profile_id = ?;
+    `,
+    profileId
+  );
+
+  await db.runAsync(
+    `
+      DELETE FROM user_pokemon
       WHERE profile_id = ?;
     `,
     profileId
@@ -1499,6 +1571,14 @@ async function clearProfileData(
   await db.runAsync(
     `
       DELETE FROM pokemon_inventory
+      WHERE profile_id = ?;
+    `,
+    profileId
+  );
+
+  await db.runAsync(
+    `
+      DELETE FROM pokemon_shard_grants
       WHERE profile_id = ?;
     `,
     profileId
@@ -1515,22 +1595,6 @@ async function clearProfileData(
   await db.runAsync(
     `
       DELETE FROM pokemon_starter_state
-      WHERE profile_id = ?;
-    `,
-    profileId
-  );
-
-  await db.runAsync(
-    `
-      DELETE FROM pokedex_entries
-      WHERE profile_id = ?;
-    `,
-    profileId
-  );
-
-  await db.runAsync(
-    `
-      DELETE FROM user_pokemon
       WHERE profile_id = ?;
     `,
     profileId
@@ -1636,6 +1700,17 @@ async function clearProfileData(
  * ========================================
  * IMPORT BACKUP
  * ========================================
+ *
+ * Supports:
+ *
+ * 1. Same-device restore
+ * 2. Phone-to-phone migration
+ *
+ * Credentials are NEVER replaced.
+ *
+ * The destination profile remains the
+ * authenticated account.
+ * ========================================
  */
 
 export async function importGymateBackup(
@@ -1664,7 +1739,7 @@ export async function importGymateBackup(
 
   /*
    * ======================================
-   * VERIFY PROFILE
+   * VERIFY DESTINATION PROFILE
    * ======================================
    */
 
@@ -1682,18 +1757,42 @@ export async function importGymateBackup(
 
   /*
    * ======================================
-   * PROFILE SAFETY CHECK
+   * USERNAME SAFETY CHECK
+   * ======================================
+   *
+   * Profile IDs are intentionally allowed
+   * to differ.
+   *
+   * The username must match so that a
+   * backup cannot accidentally be restored
+   * into a different account.
    * ======================================
    */
 
   if (
-    backup.profile.id !==
-    profileId
+    backup.profile.username.trim()
+      .toLowerCase() !==
+    existingProfile.username
+      .trim()
+      .toLowerCase()
   ) {
     throw new Error(
-      'BACKUP_PROFILE_MISMATCH'
+      'BACKUP_USERNAME_MISMATCH'
     );
   }
+
+
+  /*
+   * ======================================
+   * SOURCE / DESTINATION IDS
+   * ======================================
+   */
+
+  const sourceProfileId =
+    backup.profile.id;
+
+  const destinationProfileId =
+    profileId;
 
 
   /*
@@ -1713,13 +1812,53 @@ export async function importGymateBackup(
 
       /*
        * ====================================
-       * CLEAR CURRENT DATA
+       * REMOVE CURRENT DATA
        * ====================================
        */
 
       await clearProfileData(
-        profileId
+        destinationProfileId
       );
+
+
+      /*
+       * ====================================
+       * RESTORE PROFILE SETTINGS
+       * ====================================
+       *
+       * We intentionally DO NOT replace:
+       *
+       * - profile.id
+       * - username
+       * - password_hash
+       *
+       * Only transferable settings are
+       * restored.
+       */
+
+      if (
+        backup.profile
+          .trainerSpriteId !==
+        undefined
+      ) {
+
+        await db.runAsync(
+          `
+            UPDATE profiles
+            SET
+              trainer_sprite_id = ?,
+              updated_at = ?
+            WHERE id = ?;
+          `,
+          backup.profile
+            .trainerSpriteId,
+
+          new Date().toISOString(),
+
+          destinationProfileId
+        );
+
+      }
 
 
       /*
@@ -1734,7 +1873,12 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.profileDetails,
-          backup.profileDetails
+
+          remapProfileId(
+            backup.profileDetails,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
@@ -1753,7 +1897,12 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.progression,
-          backup.progression
+
+          remapProfileId(
+            backup.progression,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
@@ -1773,7 +1922,12 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.xpTransactions,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
@@ -1793,7 +1947,12 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.workoutSessions,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
@@ -1803,6 +1962,12 @@ export async function importGymateBackup(
       /*
        * ====================================
        * WORKOUT EXERCISES
+       * ====================================
+       *
+       * No profile_id exists here.
+       *
+       * workout_id still points to the
+       * restored workout session ID.
        * ====================================
        */
 
@@ -1823,6 +1988,11 @@ export async function importGymateBackup(
       /*
        * ====================================
        * WORKOUT SETS
+       * ====================================
+       *
+       * No profile_id exists here either.
+       *
+       * workout_exercise_id remains intact.
        * ====================================
        */
 
@@ -1853,7 +2023,12 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.customExercises,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
@@ -1862,7 +2037,7 @@ export async function importGymateBackup(
 
       /*
        * ====================================
-       * POKÉMON STARTER STATE
+       * POKÉMON
        * ====================================
        */
 
@@ -1872,18 +2047,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.pokemonStarterState,
-          backup.pokemon.starterState
+
+          remapProfileId(
+            backup.pokemon.starterState,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * POKÉMON CURRENCY
-       * ====================================
-       */
 
       if (
         backup.pokemon.currency
@@ -1891,18 +2065,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.pokemonCurrency,
-          backup.pokemon.currency
+
+          remapProfileId(
+            backup.pokemon.currency,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * POKÉMON SHARD GRANTS
-       * ====================================
-       */
 
       for (
         const row of
@@ -1911,18 +2084,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.pokemonShardGrants,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * POKÉMON INVENTORY
-       * ====================================
-       */
 
       for (
         const row of
@@ -1931,18 +2103,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.pokemonInventory,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * USER POKÉMON
-       * ====================================
-       */
 
       for (
         const row of
@@ -1951,18 +2122,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.userPokemon,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * POKÉMON TEAM
-       * ====================================
-       */
 
       for (
         const row of
@@ -1971,18 +2141,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.pokemonTeam,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * POKÉDEX
-       * ====================================
-       */
 
       for (
         const row of
@@ -1991,18 +2160,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.pokedexEntries,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * STREAK SHARD GRANTS
-       * ====================================
-       */
 
       for (
         const row of
@@ -2010,19 +2178,19 @@ export async function importGymateBackup(
       ) {
 
         await insertRow(
-          BACKUP_TABLES.pokemonStreakShardGrants,
-          row
+          BACKUP_TABLES
+            .pokemonStreakShardGrants,
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * ACHIEVEMENTS
-       * ====================================
-       */
 
       for (
         const row of
@@ -2031,18 +2199,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.userAchievements,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * GYM BADGES
-       * ====================================
-       */
 
       for (
         const row of
@@ -2051,7 +2218,12 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.userGymBadges,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
@@ -2060,7 +2232,7 @@ export async function importGymateBackup(
 
       /*
        * ====================================
-       * DIET TEMPLATES
+       * DIET
        * ====================================
        */
 
@@ -2071,7 +2243,12 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.dietTemplates,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
@@ -2079,9 +2256,10 @@ export async function importGymateBackup(
 
 
       /*
-       * ====================================
-       * DIET TEMPLATE FOODS
-       * ====================================
+       * diet_template_foods does not
+       * contain profile_id.
+       *
+       * template_id remains unchanged.
        */
 
       for (
@@ -2098,12 +2276,6 @@ export async function importGymateBackup(
       }
 
 
-      /*
-       * ====================================
-       * DAILY NUTRITION
-       * ====================================
-       */
-
       for (
         const row of
         backup.diet.dailyNutrition
@@ -2111,7 +2283,12 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.dailyNutrition,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
@@ -2119,9 +2296,10 @@ export async function importGymateBackup(
 
 
       /*
-       * ====================================
-       * DAILY NUTRITION FOODS
-       * ====================================
+       * daily_nutrition_foods does not
+       * contain profile_id.
+       *
+       * daily_nutrition_id remains unchanged.
        */
 
       for (
@@ -2140,7 +2318,7 @@ export async function importGymateBackup(
 
       /*
        * ====================================
-       * STEPS
+       * ACTIVITY
        * ====================================
        */
 
@@ -2151,18 +2329,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.dailyActivitySteps,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * RUNNING SESSIONS
-       * ====================================
-       */
 
       for (
         const row of
@@ -2171,18 +2348,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.runningSessions,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * TODO SLOTS
-       * ====================================
-       */
 
       for (
         const row of
@@ -2191,18 +2367,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.activityTodoSlots,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
 
-
-      /*
-       * ====================================
-       * DAILY TODOS
-       * ====================================
-       */
 
       for (
         const row of
@@ -2211,11 +2386,17 @@ export async function importGymateBackup(
 
         await insertRow(
           BACKUP_TABLES.dailyActivityTodos,
-          row
+
+          remapProfileId(
+            row,
+            sourceProfileId,
+            destinationProfileId
+          )
         );
 
         restoredRecords += 1;
       }
+
     }
   );
 
@@ -2227,6 +2408,7 @@ export async function importGymateBackup(
    */
 
   return {
+
     success: true,
 
     message:
@@ -2290,6 +2472,7 @@ export function parseGymateBackup(
     throw new Error(
       'INVALID_BACKUP_JSON'
     );
+
   }
 
   return validateGymateBackup(
@@ -2317,6 +2500,7 @@ export function getGymateBackupSummary(
   );
 
   return {
+
     createdAt:
       backup.createdAt,
 
@@ -2327,5 +2511,6 @@ export function getGymateBackupSummary(
       countBackupRecords(
         backup
       ),
+
   };
 }

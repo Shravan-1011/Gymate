@@ -606,82 +606,9 @@ export default function PokemonScreen() {
         })}
       </View>
 
-      <Pressable
-        onPress={async () => {
-          if (!profile) return;
+      
 
-          const result =
-            await devAddPokeballShards(
-              profile.id,
-              100
-            );
-
-          console.log(
-            'DEV SHARDS:',
-            result.pokeballShards
-          );
-        }}
-        style={styles.devShardButton}
-      >
-        <Text style={styles.devShardButtonText}>
-          DEV +100 SHARDS
-        </Text>
-      </Pressable>
-
-      {__DEV__ && (
-        <View style={styles.devXpContainer}>
-          {[100, 500, 1000].map(
-            (amount) => (
-              <Pressable
-                key={amount}
-                onPress={async () => {
-                  try {
-                    if (!profile?.id) {
-                      console.error(
-                        'DEV XP: No profile ID'
-                      );
-                      return;
-                    }
-
-                    const activityDate =
-                      new Date()
-                        .toISOString()
-                        .slice(0, 10);
-
-                    const result =
-                      await awardXP(
-                        profile.id,
-                        amount,
-                        'dev',
-                        activityDate,
-                        `dev-${Date.now()}`
-                      );
-
-                    console.log(
-                      `DEV: Added ${amount} XP`,
-                      result
-                    );
-                  } catch (error) {
-                    console.error(
-                      'DEV XP ERROR:',
-                      error
-                    );
-                  }
-                }}
-                style={styles.devButton}
-              >
-                <Text
-                  style={
-                    styles.devButtonText
-                  }
-                >
-                  +{amount} XP
-                </Text>
-              </Pressable>
-            )
-          )}
-        </View>
-      )}
+      
 
       {/* ================================
           NAVIGATION

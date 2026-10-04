@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
   createProfile as createProfileInDatabase,
+  deleteProfile,
   findProfileByUsername,
   getProfileById,
   type Profile,
@@ -32,22 +33,24 @@ import {
   verifyPassword,
 } from '../utils/password';
 
+import {
+  importGymateBackup,
+} from '../services/backupService';
+
+import type {
+  GymateBackup,
+} from '../types/backup';
+
+
 /*
  * ========================================
  * ACTIVE PROFILE STORAGE
- * ========================================
- *
- * SQLite stores the actual profile data.
- *
- * AsyncStorage only remembers which profile
- * is currently logged in.
- *
- * We do NOT store the password here.
  * ========================================
  */
 
 const ACTIVE_PROFILE_KEY =
   '@gymate/active-profile-id';
+
 
 /*
  * ========================================
@@ -68,6 +71,11 @@ type ProfileContextType = {
 
   createProfile: (
     username: string,
+    password: string
+  ) => Promise<Profile>;
+
+  restoreBackupAsNewProfile: (
+    backup: GymateBackup,
     password: string
   ) => Promise<Profile>;
 
@@ -103,6 +111,7 @@ type ProfileContextType = {
   refreshProfile: () => Promise<void>;
 };
 
+
 /*
  * ========================================
  * CONTEXT
@@ -113,6 +122,7 @@ const ProfileContext =
   createContext<
     ProfileContextType | undefined
   >(undefined);
+
 
 /*
  * ========================================
@@ -125,6 +135,7 @@ export function ProfileProvider({
 }: {
   children: ReactNode;
 }) {
+
   const [profile, setProfile] =
     useState<Profile | null>(null);
 
@@ -145,50 +156,39 @@ export function ProfileProvider({
   const [isLoading, setIsLoading] =
     useState(true);
 
+
   /*
    * ======================================
    * LOAD ACTIVE PROFILE
    * ======================================
-   *
-   * App starts:
-   *
-   * AsyncStorage
-   *      ↓
-   * profile ID
-   *      ↓
-   * SQLite profiles
-   *      ↓
-   * SQLite profile_details
-   *      ↓
-   * SQLite progression
-   *      ↓
-   * Context state
    */
 
   useEffect(() => {
+
     const loadActiveProfile =
       async () => {
+
         try {
-          /*
-           * Get active profile ID.
-           */
 
           const storedProfileId =
             await AsyncStorage.getItem(
               ACTIVE_PROFILE_KEY
             );
 
+
           /*
            * No active profile.
            */
 
           if (!storedProfileId) {
+
             setProfile(null);
             setProfileDetails(null);
             setProgression(null);
 
             return;
           }
+
 
           /*
            * Load account profile.
@@ -199,11 +199,13 @@ export function ProfileProvider({
               storedProfileId
             );
 
+
           /*
            * Profile no longer exists.
            */
 
           if (!storedProfile) {
+
             await AsyncStorage.removeItem(
               ACTIVE_PROFILE_KEY
             );
@@ -215,13 +217,9 @@ export function ProfileProvider({
             return;
           }
 
+
           /*
            * Load profile details.
-           *
-           * It is completely valid for this
-           * to be null because a newly created
-           * account may not have completed
-           * profile setup yet.
            */
 
           const storedProfileDetails =
@@ -229,18 +227,16 @@ export function ProfileProvider({
               storedProfile.id
             );
 
+
           /*
            * Load progression.
-           *
-           * getOrCreateProgression() makes sure
-           * every authenticated profile has
-           * exactly one progression record.
            */
 
           const storedProgression =
             await getOrCreateProgression(
               storedProfile.id
             );
+
 
           /*
            * Update context state.
@@ -257,7 +253,9 @@ export function ProfileProvider({
           setProgression(
             storedProgression
           );
+
         } catch (error) {
+
           console.error(
             'Failed to load active profile:',
             error
@@ -266,61 +264,73 @@ export function ProfileProvider({
           setProfile(null);
           setProfileDetails(null);
           setProgression(null);
+
         } finally {
+
           setIsLoading(false);
+
         }
+
       };
 
+
     loadActiveProfile();
+
   }, []);
+
 
   /*
    * ========================================
    * CREATE PROFILE
    * ========================================
-   *
-   * Creates the authentication/account
-   * portion of the profile.
-   *
-   * Fitness details are created separately
-   * through createProfileDetails().
    */
 
   const createProfile = async (
     username: string,
     password: string
   ): Promise<Profile> => {
+
     const trimmedUsername =
       username.trim();
+
 
     /*
      * USERNAME
      */
 
     if (!trimmedUsername) {
+
       throw new Error(
         'USERNAME_REQUIRED'
       );
+
     }
+
 
     /*
      * PASSWORD
      */
 
     if (!password) {
+
       throw new Error(
         'PASSWORD_REQUIRED'
       );
+
     }
 
+
     if (password.length < 6) {
+
       throw new Error(
         'PASSWORD_TOO_SHORT'
       );
+
     }
 
+
     /*
-     * Check username before hashing.
+     * Check username.
      */
 
     const existingProfile =
@@ -328,21 +338,28 @@ export function ProfileProvider({
         trimmedUsername
       );
 
+
     if (existingProfile) {
+
       throw new Error(
         'USERNAME_ALREADY_EXISTS'
       );
+
     }
+
 
     /*
      * Hash password.
      */
 
     const passwordHash =
-      await hashPassword(password);
+      await hashPassword(
+        password
+      );
+
 
     /*
-     * Create account in SQLite.
+     * Create account.
      */
 
     const newProfile =
@@ -351,9 +368,9 @@ export function ProfileProvider({
         passwordHash
       );
 
+
     /*
-     * Automatically authenticate the
-     * newly created profile.
+     * Authenticate.
      */
 
     await AsyncStorage.setItem(
@@ -361,8 +378,9 @@ export function ProfileProvider({
       newProfile.id
     );
 
+
     /*
-     * Create progression record.
+     * Create progression.
      */
 
     const newProgression =
@@ -370,10 +388,9 @@ export function ProfileProvider({
         newProfile.id
       );
 
+
     /*
-     * Update context state.
-     *
-     * Profile details do not exist yet.
+     * Update context.
      */
 
     setProfile(
@@ -388,8 +405,265 @@ export function ProfileProvider({
       newProgression
     );
 
+
     return newProfile;
   };
+
+
+  /*
+   * ========================================
+   * RESTORE BACKUP AS NEW PROFILE
+   * ========================================
+   *
+   * Used during first-launch migration.
+   *
+   * The backup provides:
+   *
+   * - username
+   * - profile data
+   * - Gymate data
+   *
+   * The user provides:
+   *
+   * - NEW password
+   *
+   * Passwords are never stored in the
+   * backup file.
+   */
+
+  const restoreBackupAsNewProfile =
+    async (
+      backup: GymateBackup,
+      password: string
+    ): Promise<Profile> => {
+
+      /*
+       * Validate password.
+       */
+
+      if (!password) {
+
+        throw new Error(
+          'PASSWORD_REQUIRED'
+        );
+
+      }
+
+
+      if (password.length < 6) {
+
+        throw new Error(
+          'PASSWORD_TOO_SHORT'
+        );
+
+      }
+
+
+      /*
+       * Get username from backup.
+       */
+
+      const username =
+        backup.profile.username.trim();
+
+
+      if (!username) {
+
+        throw new Error(
+          'USERNAME_REQUIRED'
+        );
+
+      }
+
+
+      /*
+       * Make sure this username isn't
+       * already being used locally.
+       */
+
+      const existingProfile =
+        await findProfileByUsername(
+          username
+        );
+
+
+      if (existingProfile) {
+
+        throw new Error(
+          'USERNAME_ALREADY_EXISTS'
+        );
+
+      }
+
+
+      /*
+       * Create a NEW password hash.
+       *
+       * The old password is never present
+       * in the backup.
+       */
+
+      const passwordHash =
+        await hashPassword(
+          password
+        );
+
+
+      /*
+       * Create destination profile.
+       */
+
+      const newProfile =
+        await createProfileInDatabase(
+          username,
+          passwordHash
+        );
+
+
+      try {
+
+        /*
+         * Authenticate destination profile.
+         */
+
+        await AsyncStorage.setItem(
+          ACTIVE_PROFILE_KEY,
+          newProfile.id
+        );
+
+
+        /*
+         * Create the initial progression
+         * required by the account.
+         *
+         * The backup import will replace it
+         * with the backed-up progression.
+         */
+
+        await getOrCreateProgression(
+          newProfile.id
+        );
+
+
+        /*
+         * Restore all Gymate data.
+         *
+         * backup.profile.id may be different
+         * from newProfile.id.
+         *
+         * backupService remaps all profile_id
+         * values to newProfile.id.
+         */
+
+        await importGymateBackup(
+          newProfile.id,
+          backup
+        );
+
+
+        /*
+         * Reload everything from SQLite.
+         *
+         * This is important because the
+         * backup has now replaced the
+         * initial profile details and
+         * progression.
+         */
+
+        const restoredProfile =
+          await getProfileById(
+            newProfile.id
+          );
+
+
+        if (!restoredProfile) {
+
+          throw new Error(
+            'PROFILE_NOT_FOUND_AFTER_RESTORE'
+          );
+
+        }
+
+
+        const restoredDetails =
+          await getProfileDetails(
+            newProfile.id
+          );
+
+
+        const restoredProgression =
+          await getOrCreateProgression(
+            newProfile.id
+          );
+
+
+        /*
+         * Update context with the restored
+         * data.
+         */
+
+        setProfile(
+          restoredProfile
+        );
+
+        setProfileDetails(
+          restoredDetails
+        );
+
+        setProgression(
+          restoredProgression
+        );
+
+
+        return restoredProfile;
+
+      } catch (error) {
+
+        /*
+         * If anything goes wrong during
+         * restore, remove the newly-created
+         * profile.
+         *
+         * This prevents a half-created
+         * migration account.
+         */
+
+        try {
+
+          await AsyncStorage.removeItem(
+            ACTIVE_PROFILE_KEY
+          );
+
+        } catch {
+          // Ignore cleanup error.
+        }
+
+
+        try {
+
+          await deleteProfile(
+            newProfile.id
+          );
+
+        } catch (cleanupError) {
+
+          console.error(
+            'Failed to clean up failed backup profile:',
+            cleanupError
+          );
+
+        }
+
+
+        setProfile(null);
+        setProfileDetails(null);
+        setProgression(null);
+
+
+        throw error;
+      }
+    };
+
 
   /*
    * ========================================
@@ -401,28 +675,36 @@ export function ProfileProvider({
     username: string,
     password: string
   ): Promise<Profile> => {
+
     const trimmedUsername =
       username.trim();
+
 
     /*
      * USERNAME
      */
 
     if (!trimmedUsername) {
+
       throw new Error(
         'USERNAME_REQUIRED'
       );
+
     }
+
 
     /*
      * PASSWORD
      */
 
     if (!password) {
+
       throw new Error(
         'PASSWORD_REQUIRED'
       );
+
     }
+
 
     /*
      * Find profile.
@@ -433,11 +715,15 @@ export function ProfileProvider({
         trimmedUsername
       );
 
+
     if (!foundProfile) {
+
       throw new Error(
         'INVALID_CREDENTIALS'
       );
+
     }
+
 
     /*
      * Verify password.
@@ -449,11 +735,15 @@ export function ProfileProvider({
         foundProfile.passwordHash
       );
 
+
     if (!passwordValid) {
+
       throw new Error(
         'INVALID_CREDENTIALS'
       );
+
     }
+
 
     /*
      * Save active profile.
@@ -464,6 +754,7 @@ export function ProfileProvider({
       foundProfile.id
     );
 
+
     /*
      * Load profile details.
      */
@@ -472,6 +763,7 @@ export function ProfileProvider({
       await getProfileDetails(
         foundProfile.id
       );
+
 
     /*
      * Load progression.
@@ -482,8 +774,9 @@ export function ProfileProvider({
         foundProfile.id
       );
 
+
     /*
-     * Update context state.
+     * Update context.
      */
 
     setProfile(
@@ -498,8 +791,10 @@ export function ProfileProvider({
       foundProgression
     );
 
+
     return foundProfile;
   };
+
 
   /*
    * ========================================
@@ -508,17 +803,10 @@ export function ProfileProvider({
    */
 
   const logout = async (): Promise<void> => {
-    /*
-     * Remove active profile ID.
-     */
 
     await AsyncStorage.removeItem(
       ACTIVE_PROFILE_KEY
     );
-
-    /*
-     * Clear context state.
-     */
 
     setProfile(null);
 
@@ -526,6 +814,7 @@ export function ProfileProvider({
 
     setProgression(null);
   };
+
 
   /*
    * ========================================
@@ -544,19 +833,15 @@ export function ProfileProvider({
         activityLevel?: string | null;
       }
     ): Promise<ProfileDetails> => {
-      /*
-       * Authentication check.
-       */
 
       if (!profile) {
+
         throw new Error(
           'NOT_AUTHENTICATED'
         );
+
       }
 
-      /*
-       * Create details in SQLite.
-       */
 
       const newDetails =
         await createProfileDetails(
@@ -564,16 +849,15 @@ export function ProfileProvider({
           details
         );
 
-      /*
-       * Update context.
-       */
 
       setProfileDetails(
         newDetails
       );
 
+
       return newDetails;
     };
+
 
   /*
    * ========================================
@@ -592,19 +876,15 @@ export function ProfileProvider({
         activityLevel?: string | null;
       }
     ): Promise<ProfileDetails | null> => {
-      /*
-       * Authentication check.
-       */
 
       if (!profile) {
+
         throw new Error(
           'NOT_AUTHENTICATED'
         );
+
       }
 
-      /*
-       * Update details in SQLite.
-       */
 
       const updatedDetails =
         await updateProfileDetails(
@@ -612,82 +892,55 @@ export function ProfileProvider({
           updates
         );
 
-      /*
-       * Update context.
-       */
 
       setProfileDetails(
         updatedDetails
       );
 
+
       return updatedDetails;
     };
+
 
   /*
    * ========================================
    * REFRESH PROFILE
    * ========================================
-   *
-   * Reloads:
-   *
-   * profile
-   * profileDetails
-   * progression
-   *
-   * Useful after editing profile data or
-   * when another system changes progression.
    */
 
   const refreshProfile =
     async (): Promise<void> => {
-      /*
-       * No authenticated profile.
-       */
 
       if (!profile) {
         return;
       }
 
-      /*
-       * Reload account profile.
-       */
 
       const updatedProfile =
         await getProfileById(
           profile.id
         );
 
-      /*
-       * Account disappeared.
-       */
 
       if (!updatedProfile) {
+
         await logout();
 
         return;
       }
 
-      /*
-       * Reload profile details.
-       */
 
       const updatedProfileDetails =
         await getProfileDetails(
           profile.id
         );
 
-      /*
-       * Reload progression.
-       */
 
       const updatedProgression =
         await getOrCreateProgression(
           profile.id
         );
 
-      /*
-       * Update context state.
-       */
 
       setProfile(
         updatedProfile
@@ -702,6 +955,7 @@ export function ProfileProvider({
       );
     };
 
+
   /*
    * ========================================
    * PROVIDER
@@ -711,60 +965,31 @@ export function ProfileProvider({
   return (
     <ProfileContext.Provider
       value={{
-        /*
-         * Profile
-         */
 
         profile,
 
-        /*
-         * Profile details
-         */
-
         profileDetails,
-
-        /*
-         * Progression
-         */
 
         progression,
 
-        /*
-         * Loading
-         */
-
         isLoading,
-
-        /*
-         * Authentication
-         */
 
         isAuthenticated:
           profile !== null,
 
-        /*
-         * Authentication actions
-         */
-
         createProfile,
+
+        restoreBackupAsNewProfile,
 
         login,
 
         logout,
-
-        /*
-         * Profile details actions
-         */
 
         createProfileDetails:
           handleCreateProfileDetails,
 
         updateProfileDetails:
           handleUpdateProfileDetails,
-
-        /*
-         * Refresh
-         */
 
         refreshProfile,
       }}
@@ -774,6 +999,7 @@ export function ProfileProvider({
   );
 }
 
+
 /*
  * ========================================
  * HOOK
@@ -781,14 +1007,21 @@ export function ProfileProvider({
  */
 
 export function useProfile() {
+
   const context =
-    useContext(ProfileContext);
+    useContext(
+      ProfileContext
+    );
+
 
   if (!context) {
+
     throw new Error(
       'useProfile must be used inside ProfileProvider'
     );
+
   }
+
 
   return context;
 }

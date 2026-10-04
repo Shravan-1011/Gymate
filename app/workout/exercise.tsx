@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Alert,
 } from 'react-native';
 
 import {
@@ -11,8 +12,23 @@ import {
   useLocalSearchParams,
 } from 'expo-router';
 
-import { colors, spacing } from '../../constants/theme';
-import { useWorkout } from '../../context/WorkoutContext';
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  colors,
+  spacing,
+} from '../../constants/theme';
+
+import {
+  useWorkout,
+} from '../../context/WorkoutContext';
+
+import type {
+  WorkoutSession,
+} from '../../types/workout';
 
 export default function ExerciseScreen() {
   const { exerciseId } =
@@ -23,13 +39,105 @@ export default function ExerciseScreen() {
   const {
     workout,
     updateSet,
+    deleteSet,
+    getPreviousWorkout,
   } = useWorkout();
+
+  /*
+   * ========================================
+   * PREVIOUS WORKOUT
+   * ========================================
+   */
+
+  const [
+    previousWorkout,
+    setPreviousWorkout,
+  ] = useState<WorkoutSession | null>(
+    null
+  );
+
+  const [
+    isLoadingPrevious,
+    setIsLoadingPrevious,
+  ] = useState(true);
+
+  const [
+    deletingSetId,
+    setDeletingSetId,
+  ] = useState<string | null>(
+    null
+  );
+
+  /*
+   * ========================================
+   * CURRENT EXERCISE
+   * ========================================
+   */
 
   const workoutExercise =
     workout?.exercises.find(
       (item) =>
         item.exercise.id === exerciseId
     );
+
+  /*
+   * ========================================
+   * LOAD PREVIOUS SESSION
+   * ========================================
+   */
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPreviousWorkout =
+      async () => {
+        if (!workout || !exerciseId) {
+          if (mounted) {
+            setPreviousWorkout(null);
+            setIsLoadingPrevious(false);
+          }
+
+          return;
+        }
+
+        try {
+          setIsLoadingPrevious(true);
+
+          const previous =
+            await getPreviousWorkout(
+              workout.splitId,
+              workout.id
+            );
+
+          if (mounted) {
+            setPreviousWorkout(previous);
+          }
+        } catch (error) {
+          console.error(
+            'Failed to load previous workout:',
+            error
+          );
+
+          if (mounted) {
+            setPreviousWorkout(null);
+          }
+        } finally {
+          if (mounted) {
+            setIsLoadingPrevious(false);
+          }
+        }
+      };
+
+    loadPreviousWorkout();
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    workout?.id,
+    workout?.splitId,
+    exerciseId,
+  ]);
 
   /*
    * ========================================
@@ -46,9 +154,13 @@ export default function ExerciseScreen() {
 
         <Pressable
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() =>
+            router.back()
+          }
         >
-          <Text style={styles.backButtonText}>
+          <Text
+            style={styles.backButtonText}
+          >
             GO BACK
           </Text>
         </Pressable>
@@ -56,26 +168,122 @@ export default function ExerciseScreen() {
     );
   }
 
-  const { exercise, sets } =
-    workoutExercise;
+  const {
+    exercise,
+    sets,
+  } = workoutExercise;
 
   /*
    * ========================================
-   * TOGGLE SET COMPLETE
+   * PREVIOUS EXERCISE
    * ========================================
    */
 
-  const handleToggleSet = (
+  const previousExercise =
+    previousWorkout?.exercises.find(
+      (item) =>
+        item.exercise.id === exerciseId
+    ) ?? null;
+
+  /*
+   * ========================================
+   * TOGGLE COMPLETE
+   * ========================================
+   */
+
+  const handleToggleSet = async (
     setId: string,
     completed: boolean
   ) => {
-    updateSet(
-      exerciseId,
-      setId,
-      {
-        completed: !completed,
-      }
+    try {
+      await updateSet(
+        exerciseId,
+        setId,
+        {
+          completed: !completed,
+        }
+      );
+    } catch (error) {
+      console.error(
+        'Failed to update workout set:',
+        error
+      );
+    }
+  };
+
+  /*
+   * ========================================
+   * DELETE SET
+   * ========================================
+   */
+
+  const handleDeleteSet = (
+    setId: string,
+    setNumber: number
+  ) => {
+    if (deletingSetId) {
+      return;
+    }
+
+    Alert.alert(
+      'DELETE SET',
+      `DELETE SET ${setNumber}? THIS CANNOT BE UNDONE.`,
+      [
+        {
+          text: 'CANCEL',
+          style: 'cancel',
+        },
+
+        {
+          text: 'DELETE',
+          style: 'destructive',
+
+          onPress: async () => {
+            try {
+              setDeletingSetId(
+                setId
+              );
+
+              await deleteSet(
+                exerciseId,
+                setId
+              );
+            } catch (error) {
+              console.error(
+                'Failed to delete workout set:',
+                error
+              );
+
+              Alert.alert(
+                'DELETE FAILED',
+                'THE SET COULD NOT BE DELETED.'
+              );
+            } finally {
+              setDeletingSetId(null);
+            }
+          },
+        },
+      ]
     );
+  };
+
+  /*
+   * ========================================
+   * EDIT SET
+   * ========================================
+   */
+
+  const handleEditSet = (
+    setId: string
+  ) => {
+    router.push({
+      pathname:
+        '/workout/edit-set',
+      params: {
+        exerciseId,
+        setId,
+      },
+    });
   };
 
   /*
@@ -87,20 +295,30 @@ export default function ExerciseScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
+      contentContainerStyle={
+        styles.content
+      }
+      showsVerticalScrollIndicator={
+        false
+      }
     >
       {/* BACK */}
 
       <Pressable
         style={styles.backRow}
-        onPress={() => router.back()}
+        onPress={() =>
+          router.back()
+        }
       >
-        <Text style={styles.backArrow}>
+        <Text
+          style={styles.backArrow}
+        >
           ‹
         </Text>
 
-        <Text style={styles.backText}>
+        <Text
+          style={styles.backText}
+        >
           BACK
         </Text>
       </Pressable>
@@ -117,90 +335,298 @@ export default function ExerciseScreen() {
         {exercise.equipment.toUpperCase()}
       </Text>
 
-      {/* SETS */}
+      {/* ================================== */}
+      {/* YOUR SETS */}
+      {/* ================================== */}
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
+        <Text
+          style={styles.sectionTitle}
+        >
           YOUR SETS
         </Text>
       </View>
 
       {sets.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>
+          <Text
+            style={styles.emptyTitle}
+          >
             NO SETS YET
           </Text>
 
-          <Text style={styles.emptyText}>
+          <Text
+            style={styles.emptyText}
+          >
             ADD YOUR FIRST SET TO START
             TRACKING THIS EXERCISE.
           </Text>
         </View>
       ) : (
         <View style={styles.setList}>
-          {sets.map((set) => (
-            <View
-              key={set.id}
-              style={[
-                styles.setCard,
-                set.completed &&
-                  styles.setCardCompleted,
-              ]}
-            >
-              {/* SET INFORMATION */}
+          {sets.map((set) => {
+            const isDeleting =
+              deletingSetId === set.id;
 
-              <View style={styles.setMain}>
-                <Text style={styles.setNumber}>
-                  SET {set.setNumber}
-                </Text>
-
-                <Text style={styles.setInfo}>
-                  {set.weight} KG × {set.reps}
-                </Text>
-
-                <Text style={styles.setType}>
-                  {set.type.toUpperCase()}
-                </Text>
-              </View>
-
-              {/* COMPLETE BUTTON */}
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.completeButton,
+            return (
+              <View
+                key={set.id}
+                style={[
+                  styles.setCard,
 
                   set.completed &&
-                    styles.completeButtonDone,
+                    styles.setCardCompleted,
 
-                  pressed &&
-                    styles.buttonPressed,
+                  isDeleting &&
+                    styles.setCardDeleting,
                 ]}
-                onPress={() =>
-                  handleToggleSet(
-                    set.id,
-                    set.completed
-                  )
-                }
               >
-                <Text
-                  style={[
-                    styles.completeButtonText,
+                {/* SET INFORMATION */}
+
+                <View style={styles.setMain}>
+                  <Text
+                    style={
+                      styles.setNumber
+                    }
+                  >
+                    SET {set.setNumber}
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.setInfo
+                    }
+                  >
+                    {set.weight} KG ×{' '}
+                    {set.reps}
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.setType
+                    }
+                  >
+                    {set.type.toUpperCase()}
+                  </Text>
+                </View>
+
+                {/* EDIT / DELETE */}
+
+                <View
+                  style={
+                    styles.actionRow
+                  }
+                >
+                  <Pressable
+                    disabled={isDeleting}
+                    style={({ pressed }) => [
+                      styles.smallButton,
+                      pressed &&
+                        styles.buttonPressed,
+                      isDeleting &&
+                        styles.disabledButton,
+                    ]}
+                    onPress={() =>
+                      handleEditSet(
+                        set.id
+                      )
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.editButtonText
+                      }
+                    >
+                      EDIT
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    disabled={isDeleting}
+                    style={({ pressed }) => [
+                      styles.smallButton,
+                      styles.deleteButton,
+                      pressed &&
+                        styles.buttonPressed,
+                      isDeleting &&
+                        styles.disabledButton,
+                    ]}
+                    onPress={() =>
+                      handleDeleteSet(
+                        set.id,
+                        set.setNumber
+                      )
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.deleteButtonText
+                      }
+                    >
+                      {isDeleting
+                        ? '...'
+                        : 'DELETE'}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {/* COMPLETE */}
+
+                <Pressable
+                  disabled={isDeleting}
+                  style={({ pressed }) => [
+                    styles.completeButton,
 
                     set.completed &&
-                      styles.completeButtonTextDone,
+                      styles.completeButtonDone,
+
+                    pressed &&
+                      !isDeleting &&
+                      styles.buttonPressed,
+
+                    isDeleting &&
+                      styles.disabledButton,
                   ]}
+                  onPress={() =>
+                    handleToggleSet(
+                      set.id,
+                      set.completed
+                    )
+                  }
                 >
-                  {set.completed
-                    ? '✓ DONE'
-                    : 'COMPLETE SET'}
-                </Text>
-              </Pressable>
-            </View>
-          ))}
+                  <Text
+                    style={[
+                      styles.completeButtonText,
+
+                      set.completed &&
+                        styles.completeButtonTextDone,
+                    ]}
+                  >
+                    {set.completed
+                      ? '✓ DONE'
+                      : 'COMPLETE SET'}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })}
         </View>
       )}
 
+      {/* ================================== */}
+      {/* PREVIOUS SESSION */}
+      {/* ================================== */}
+
+      <View
+        style={styles.previousSection}
+      >
+        <View
+          style={styles.sectionHeader}
+        >
+          <Text
+            style={styles.sectionTitle}
+          >
+            PREVIOUS SESSION
+          </Text>
+        </View>
+
+        {isLoadingPrevious ? (
+          <View
+            style={styles.previousCard}
+          >
+            <Text
+              style={
+                styles.previousMuted
+              }
+            >
+              LOADING PREVIOUS SESSION...
+            </Text>
+          </View>
+        ) : !previousExercise ||
+          previousExercise.sets.length ===
+            0 ? (
+          <View
+            style={styles.previousCard}
+          >
+            <Text
+              style={
+                styles.previousTitle
+              }
+            >
+              NO PREVIOUS DATA
+            </Text>
+
+            <Text
+              style={
+                styles.previousMuted
+              }
+            >
+              THIS IS YOUR FIRST LOGGED
+              SESSION FOR THIS EXERCISE.
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={styles.previousCard}
+          >
+            {previousExercise.sets.map(
+              (
+                previousSet,
+                index
+              ) => (
+                <View
+                  key={
+                    previousSet.id
+                  }
+                  style={[
+                    styles.previousSetRow,
+
+                    index ===
+                      previousExercise
+                        .sets.length -
+                        1 &&
+                      styles.previousSetRowLast,
+                  ]}
+                >
+                  <Text
+                    style={
+                      styles.previousSetNumber
+                    }
+                  >
+                    SET{' '}
+                    {
+                      previousSet.setNumber
+                    }
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.previousSetValue
+                    }
+                  >
+                    {previousSet.weight} KG ×{' '}
+                    {
+                      previousSet.reps
+                    }
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.previousSetType
+                    }
+                  >
+                    {previousSet.type.toUpperCase()}
+                  </Text>
+                </View>
+              )
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* ================================== */}
       {/* ADD SET */}
+      {/* ================================== */}
 
       <Pressable
         style={({ pressed }) => [
@@ -210,7 +636,8 @@ export default function ExerciseScreen() {
         ]}
         onPress={() =>
           router.push({
-            pathname: '/workout/add-set',
+            pathname:
+              '/workout/add-set',
             params: {
               exerciseId,
             },
@@ -234,7 +661,8 @@ export default function ExerciseScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor:
+      colors.background,
   },
 
   content: {
@@ -294,10 +722,12 @@ const styles = StyleSheet.create({
   /* EMPTY */
 
   emptyCard: {
-    backgroundColor: colors.surface,
+    backgroundColor:
+      colors.surface,
 
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor:
+      colors.border,
 
     padding: spacing.lg,
 
@@ -315,7 +745,8 @@ const styles = StyleSheet.create({
   emptyText: {
     fontFamily: 'VT323',
     fontSize: 20,
-    color: colors.textSecondary,
+    color:
+      colors.textSecondary,
     lineHeight: 22,
   },
 
@@ -329,16 +760,23 @@ const styles = StyleSheet.create({
   /* SET CARD */
 
   setCard: {
-    backgroundColor: colors.surface,
+    backgroundColor:
+      colors.surface,
 
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor:
+      colors.border,
 
     padding: spacing.md,
   },
 
   setCardCompleted: {
-    borderColor: colors.primary,
+    borderColor:
+      colors.primary,
+  },
+
+  setCardDeleting: {
+    opacity: 0.5,
   },
 
   setMain: {
@@ -366,29 +804,74 @@ const styles = StyleSheet.create({
   setType: {
     fontFamily: 'PressStart2P',
     fontSize: 7,
-    color: colors.textSecondary,
+    color:
+      colors.textSecondary,
 
     marginLeft: spacing.sm,
   },
 
-  /* COMPLETE SET */
+  /* ACTIONS */
 
-  completeButton: {
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+
     marginTop: spacing.md,
+  },
+
+  smallButton: {
+    flex: 1,
 
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor:
+      colors.border,
+
+    paddingVertical: spacing.sm,
+
+    alignItems: 'center',
+
+    backgroundColor:
+      colors.background,
+  },
+
+  editButtonText: {
+    fontFamily: 'PressStart2P',
+    fontSize: 8,
+    color: colors.primary,
+  },
+
+  deleteButton: {
+    borderColor:
+      colors.primary,
+  },
+
+  deleteButtonText: {
+    fontFamily: 'PressStart2P',
+    fontSize: 8,
+    color: colors.primary,
+  },
+
+  /* COMPLETE */
+
+  completeButton: {
+    marginTop: spacing.sm,
+
+    borderWidth: 2,
+    borderColor:
+      colors.primary,
 
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
 
     alignItems: 'center',
 
-    backgroundColor: colors.background,
+    backgroundColor:
+      colors.background,
   },
 
   completeButtonDone: {
-    backgroundColor: colors.primary,
+    backgroundColor:
+      colors.primary,
   },
 
   completeButtonText: {
@@ -398,20 +881,95 @@ const styles = StyleSheet.create({
   },
 
   completeButtonTextDone: {
-    color: colors.background,
+    color:
+      colors.background,
+  },
+
+  /* PREVIOUS SESSION */
+
+  previousSection: {
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+
+  previousCard: {
+    backgroundColor:
+      colors.surface,
+
+    borderWidth: 2,
+    borderColor:
+      colors.border,
+
+    padding: spacing.md,
+  },
+
+  previousTitle: {
+    fontFamily: 'PressStart2P',
+    fontSize: 10,
+    color: colors.text,
+
+    marginBottom: spacing.sm,
+  },
+
+  previousMuted: {
+    fontFamily: 'VT323',
+    fontSize: 18,
+    color:
+      colors.textSecondary,
+    lineHeight: 21,
+  },
+
+  previousSetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    paddingVertical: spacing.sm,
+
+    borderBottomWidth: 1,
+    borderBottomColor:
+      colors.border,
+  },
+
+  previousSetRowLast: {
+    borderBottomWidth: 0,
+  },
+
+  previousSetNumber: {
+    fontFamily: 'PressStart2P',
+    fontSize: 8,
+    color: colors.primary,
+
+    width: 65,
+  },
+
+  previousSetValue: {
+    flex: 1,
+
+    fontFamily: 'VT323',
+    fontSize: 21,
+    color: colors.text,
+  },
+
+  previousSetType: {
+    fontFamily: 'PressStart2P',
+    fontSize: 7,
+    color:
+      colors.textSecondary,
   },
 
   /* ADD SET */
 
   addSetButton: {
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor:
+      colors.primary,
 
     paddingVertical: spacing.lg,
 
     alignItems: 'center',
 
-    backgroundColor: colors.background,
+    backgroundColor:
+      colors.background,
   },
 
   addSetText: {
@@ -420,10 +978,14 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 
-  /* PRESSED */
+  /* GENERAL */
 
   buttonPressed: {
     opacity: 0.65,
+  },
+
+  disabledButton: {
+    opacity: 0.5,
   },
 
   /* ERROR */
@@ -434,7 +996,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
 
-    backgroundColor: colors.background,
+    backgroundColor:
+      colors.background,
 
     padding: spacing.lg,
   },
@@ -449,7 +1012,8 @@ const styles = StyleSheet.create({
 
   backButton: {
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor:
+      colors.border,
 
     padding: spacing.md,
   },

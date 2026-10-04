@@ -1,10 +1,11 @@
-import { WorkoutSplit } from '../types/workout';
-
-
+import type {
+  MuscleGroup,
+  WorkoutSplit,
+} from '../types/workout';
 
 export const workoutSplits: WorkoutSplit[] = [
   // =========================================
-  // CLASSIC SPLITS
+  // STANDARD — PUSH / PULL / LEGS
   // =========================================
 
   {
@@ -15,12 +16,14 @@ export const workoutSplits: WorkoutSplit[] = [
       'chest',
       'shoulders',
       'triceps',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
-  'bench-press',
-  'incline-press',
-  'shoulder-press',
-],
+      'bench-press',
+      'incline-press',
+      'shoulder-press',
+      'lateral-raise',
+      'tricep-pushdown',
+    ],
   },
 
   {
@@ -32,17 +35,17 @@ export const workoutSplits: WorkoutSplit[] = [
       'lats',
       'biceps',
       'rear-delts',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
-  'deadlift',
-  'pull-up',
-  'lat-pulldown',
-  'barbell-row',
-  'seated-cable-row',
-  'barbell-curl',
-  'hammer-curl',
-  'rear-delt-fly',
-],
+      'deadlift',
+      'pull-up',
+      'lat-pulldown',
+      'barbell-row',
+      'seated-cable-row',
+      'barbell-curl',
+      'hammer-curl',
+      'rear-delt-fly',
+    ],
   },
 
   {
@@ -54,19 +57,19 @@ export const workoutSplits: WorkoutSplit[] = [
       'hamstrings',
       'glutes',
       'calves',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
-  'barbell-squat',
-  'leg-press',
-  'romanian-deadlift',
-  'leg-curl',
-  'leg-extension',
-  'calf-raise',
-],
+      'barbell-squat',
+      'leg-press',
+      'romanian-deadlift',
+      'leg-curl',
+      'leg-extension',
+      'calf-raise',
+    ],
   },
 
   // =========================================
-  // UPPER / LOWER
+  // STANDARD — UPPER / LOWER
   // =========================================
 
   {
@@ -80,19 +83,18 @@ export const workoutSplits: WorkoutSplit[] = [
       'biceps',
       'triceps',
       'forearms',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
-  'bench-press',
-  'incline-dumbbell-press',
-  'pull-up',
-  'lat-pulldown',
-  'barbell-row',
-  'overhead-press',
-  'lateral-raise',
-  'barbell-curl',
-  'tricep-pushdown',
-],
-
+      'bench-press',
+      'incline-dumbbell-press',
+      'pull-up',
+      'lat-pulldown',
+      'barbell-row',
+      'overhead-press',
+      'lateral-raise',
+      'barbell-curl',
+      'tricep-pushdown',
+    ],
   },
 
   {
@@ -104,218 +106,85 @@ export const workoutSplits: WorkoutSplit[] = [
       'hamstrings',
       'glutes',
       'calves',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
-  'barbell-squat',
-  'leg-press',
-  'romanian-deadlift',
-  'leg-curl',
-  'leg-extension',
-  'hip-thrust',
-  'calf-raise',
-],
+      'barbell-squat',
+      'leg-press',
+      'romanian-deadlift',
+      'leg-curl',
+      'leg-extension',
+      'hip-thrust',
+      'calf-raise',
+    ],
   },
 
   // =========================================
-  // FULL BODY
+  // BRO SPLITS
   // =========================================
 
   {
-    id: 'full-body',
-    name: 'FULL BODY',
-    shortDescription: 'Train your entire body',
+    id: 'chest-triceps',
+    name: 'CHEST + TRICEPS',
+    shortDescription: 'Chest and triceps focused workout',
     targetMuscles: [
       'chest',
-      'back',
-      'shoulders',
-      'quads',
-      'hamstrings',
-      'glutes',
-      'biceps',
       'triceps',
-      'calves',
-      'abs',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
-  'barbell-squat',
-  'bench-press',
-  'barbell-row',
-  'overhead-press',
-  'romanian-deadlift',
-  'lat-pulldown',
-  'calf-raise',
-  'crunch',
-],
+      'bench-press',
+      'incline-dumbbell-press',
+      'cable-fly',
+      'tricep-pushdown',
+      'overhead-tricep-extension',
+      'skullcrusher',
+    ],
   },
 
-  // =========================================
-  // BRO SPLIT
-  // =========================================
-
   {
-    id: 'bro-split',
-    name: 'BRO SPLIT',
-    shortDescription: 'One major muscle group per training day',
+    id: 'back-biceps',
+    name: 'BACK + BICEPS',
+    shortDescription: 'Back and biceps focused workout',
     targetMuscles: [
-      'chest',
       'back',
-      'shoulders',
+      'lats',
       'biceps',
-      'triceps',
-      'quads',
-      'hamstrings',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
-  'bench-press',
-  'incline-dumbbell-press',
-  'cable-fly',
-  'barbell-row',
-  'lat-pulldown',
-  'seated-cable-row',
-  'barbell-curl',
-  'tricep-pushdown',
-  'barbell-squat',
-  'leg-curl',
-  'lateral-raise',
-  'rear-delt-fly',
-],
+      'deadlift',
+      'pull-up',
+      'lat-pulldown',
+      'barbell-row',
+      'seated-cable-row',
+      'barbell-curl',
+      'hammer-curl',
+    ],
   },
 
-  // =========================================
-  // ARNOLD SPLIT
-  // =========================================
-
   {
-    id: 'arnold-split',
-    name: 'ARNOLD SPLIT',
-    shortDescription: 'Chest, back, shoulders and arms focused training',
+    id: 'legs-shoulders',
+    name: 'LEGS + SHOULDERS',
+    shortDescription: 'Legs and shoulders focused workout',
     targetMuscles: [
-      'chest',
-      'back',
-      'shoulders',
-      'biceps',
-      'triceps',
-    ],
-    recommendedExerciseIds: [
-  'bench-press',
-  'incline-dumbbell-press',
-  'cable-fly',
-  'barbell-row',
-  'lat-pulldown',
-  'seated-cable-row',
-  'overhead-press',
-  'lateral-raise',
-  'rear-delt-fly',
-  'barbell-curl',
-  'tricep-pushdown',
-],
-  },
-
-  // =========================================
-  // PHUL
-  // =========================================
-
-  {
-    id: 'phul',
-    name: 'PHUL',
-    shortDescription: 'Power and hypertrophy upper/lower split',
-    targetMuscles: [
-      'chest',
-      'back',
-      'shoulders',
-      'biceps',
-      'triceps',
-      'quads',
-      'hamstrings',
-      'glutes',
-    ],
-    recommendedExerciseIds: [
-  'barbell-squat',
-  'bench-press',
-  'deadlift',
-  'overhead-press',
-  'barbell-row',
-  'barbell-curl',
-  'tricep-pushdown',
-  'leg-curl',
-  'calf-raise',
-],
-  },
-
-  // =========================================
-  // PHAT
-  // =========================================
-
-  {
-    id: 'phat',
-    name: 'PHAT',
-    shortDescription: 'Power and hypertrophy focused training',
-    targetMuscles: [
-      'chest',
-      'back',
-      'shoulders',
-      'biceps',
-      'triceps',
       'quads',
       'hamstrings',
       'glutes',
       'calves',
-    ],
-    recommendedExerciseIds: [
-  'barbell-squat',
-  'bench-press',
-  'deadlift',
-  'overhead-press',
-  'barbell-row',
-  'pull-up',
-  'incline-dumbbell-press',
-  'romanian-deadlift',
-  'barbell-curl',
-  'tricep-pushdown',
-  'lateral-raise',
-],
-  },
-
-  // =========================================
-  // PPL × 2
-  // =========================================
-
-  {
-    id: 'ppl-x2',
-    name: 'PPL × 2',
-    shortDescription: 'Push, pull and legs repeated twice per week',
-    targetMuscles: [
-      'chest',
-      'back',
       'shoulders',
-      'biceps',
-      'triceps',
-      'quads',
-      'hamstrings',
-      'glutes',
-      'calves',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
-  'bench-press',
-  'incline-dumbbell-press',
-  'overhead-press',
-  'lateral-raise',
-  'tricep-pushdown',
-  'pull-up',
-  'lat-pulldown',
-  'barbell-row',
-  'seated-cable-row',
-  'barbell-curl',
-  'barbell-squat',
-  'leg-press',
-  'romanian-deadlift',
-  'leg-curl',
-  'calf-raise',
-],
+      'barbell-squat',
+      'leg-press',
+      'romanian-deadlift',
+      'leg-curl',
+      'calf-raise',
+      'overhead-press',
+      'lateral-raise',
+      'rear-delt-fly',
+    ],
   },
 
   // =========================================
-  // MUSCLE FOCUSED
+  // INDIVIDUAL MUSCLE
   // =========================================
 
   {
@@ -325,7 +194,7 @@ export const workoutSplits: WorkoutSplit[] = [
     targetMuscles: [
       'chest',
       'upper-chest',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
       'bench-press',
       'incline-dumbbell-press',
@@ -341,11 +210,12 @@ export const workoutSplits: WorkoutSplit[] = [
       'back',
       'lats',
       'traps',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
       'barbell-row',
       'lat-pulldown',
       'seated-cable-row',
+      'pull-up',
     ],
   },
 
@@ -356,27 +226,11 @@ export const workoutSplits: WorkoutSplit[] = [
     targetMuscles: [
       'shoulders',
       'rear-delts',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
       'overhead-press',
       'lateral-raise',
       'rear-delt-fly',
-    ],
-  },
-
-  {
-    id: 'arms',
-    name: 'ARMS',
-    shortDescription: 'Biceps, triceps and forearms',
-    targetMuscles: [
-      'biceps',
-      'triceps',
-      'forearms',
-    ],
-    recommendedExerciseIds: [
-      'barbell-curl',
-      'tricep-pushdown',
-      'hammer-curl',
     ],
   },
 
@@ -387,10 +241,9 @@ export const workoutSplits: WorkoutSplit[] = [
     targetMuscles: [
       'biceps',
       'forearms',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
       'barbell-curl',
-      'incline-dumbbell-press',
       'hammer-curl',
     ],
   },
@@ -401,11 +254,23 @@ export const workoutSplits: WorkoutSplit[] = [
     shortDescription: 'Triceps focused workout',
     targetMuscles: [
       'triceps',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
       'tricep-pushdown',
       'overhead-tricep-extension',
       'skullcrusher',
+    ],
+  },
+
+  {
+    id: 'forearms',
+    name: 'FOREARMS',
+    shortDescription: 'Forearm focused workout',
+    targetMuscles: [
+      'forearms',
+    ] as MuscleGroup[],
+    recommendedExerciseIds: [
+      'hammer-curl',
     ],
   },
 
@@ -415,11 +280,11 @@ export const workoutSplits: WorkoutSplit[] = [
     shortDescription: 'Quadriceps focused workout',
     targetMuscles: [
       'quads',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
       'barbell-squat',
       'leg-press',
-      'romanian-deadlift',
+      'leg-extension',
     ],
   },
 
@@ -429,12 +294,10 @@ export const workoutSplits: WorkoutSplit[] = [
     shortDescription: 'Hamstring focused workout',
     targetMuscles: [
       'hamstrings',
-      'glutes',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
       'romanian-deadlift',
       'leg-curl',
-      'glute-bench',
     ],
   },
 
@@ -445,11 +308,10 @@ export const workoutSplits: WorkoutSplit[] = [
     targetMuscles: [
       'glutes',
       'hamstrings',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
-      'glute-bench',
-      'hip-thruster',
-      'single-leg-glute-hamraise',
+      'hip-thrust',
+      'romanian-deadlift',
     ],
   },
 
@@ -459,7 +321,7 @@ export const workoutSplits: WorkoutSplit[] = [
     shortDescription: 'Calf focused workout',
     targetMuscles: [
       'calves',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
       'calf-raise',
     ],
@@ -472,7 +334,7 @@ export const workoutSplits: WorkoutSplit[] = [
     targetMuscles: [
       'abs',
       'hip-flexors',
-    ],
+    ] as MuscleGroup[],
     recommendedExerciseIds: [
       'plank',
       'russian-twist',
@@ -480,15 +342,15 @@ export const workoutSplits: WorkoutSplit[] = [
     ],
   },
 
-  // =========================================
-  // CUSTOM
-  // =========================================
-
   {
-    id: 'custom',
-    name: 'CUSTOM',
-    shortDescription: 'Build your own workout split',
-    targetMuscles: [],
-    recommendedExerciseIds: [],
+    id: 'hip-flexors',
+    name: 'HIP FLEXORS',
+    shortDescription: 'Hip flexor focused workout',
+    targetMuscles: [
+      'hip-flexors',
+    ] as MuscleGroup[],
+    recommendedExerciseIds: [
+      'mountain-climber',
+    ],
   },
 ];

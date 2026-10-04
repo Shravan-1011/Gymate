@@ -48,6 +48,7 @@ import type {
   UserPokemon,
 } from '../../types/pokemon';
 
+
 /*
  * ========================================
  * TYPES
@@ -68,14 +69,10 @@ type DailyActivityStatus = {
   todo: boolean;
 };
 
+
 /*
  * ========================================
  * DATE
- * ========================================
- *
- * Uses the device's local calendar date.
- * This keeps Home consistent with the
- * rest of Gymate.
  * ========================================
  */
 
@@ -98,6 +95,7 @@ function getTodayDate(): string {
   return `${year}-${month}-${day}`;
 }
 
+
 /*
  * ========================================
  * HOME SCREEN
@@ -105,27 +103,24 @@ function getTodayDate(): string {
  */
 
 export default function HomeScreen() {
+
   const {
     profile,
     isLoading: profileLoading,
   } = useProfile();
 
-  /*
-   * Safe-area inset.
-   *
-   * This prevents the Gymate logo and
-   * Profile button from sitting underneath
-   * the Android notification/status bar.
-   */
 
   const insets =
     useSafeAreaInsets();
 
+
   const profileId =
     profile?.id ?? null;
 
+
   const [isLoading, setIsLoading] =
     useState(true);
+
 
   const [activities, setActivities] =
     useState<DailyActivityStatus>({
@@ -136,8 +131,10 @@ export default function HomeScreen() {
       todo: false,
     });
 
+
   const [team, setTeam] =
     useState<TeamEntry[]>([]);
+
 
   /*
    * ======================================
@@ -147,21 +144,30 @@ export default function HomeScreen() {
 
   const loadHome = useCallback(
     async () => {
+
       if (!profileId) {
+
         setIsLoading(false);
+
         return;
+
       }
 
+
       try {
+
         setIsLoading(true);
+
 
         const today =
           getTodayDate();
+
 
         const [
           transactions,
           teamDetails,
         ] = await Promise.all([
+
           getXPTransactionsForDate(
             profileId,
             today,
@@ -170,7 +176,9 @@ export default function HomeScreen() {
           getTeamWithDetails(
             profileId,
           ),
+
         ]);
+
 
         /*
          * ----------------------------------
@@ -188,7 +196,9 @@ export default function HomeScreen() {
               transaction.amount > 0,
           );
 
+
         setActivities({
+
           workout:
             hasSource(
               'WORKOUT_COMPLETED',
@@ -213,7 +223,9 @@ export default function HomeScreen() {
             hasSource(
               'TODO_COMPLETED',
             ),
+
         });
+
 
         /*
          * ----------------------------------
@@ -224,43 +236,52 @@ export default function HomeScreen() {
         setTeam(
           teamDetails,
         );
+
       } catch (error) {
+
         console.error(
           '[HOME] Failed to load Home data:',
           error,
         );
 
+
         setActivities({
+
           workout: false,
           diet: false,
           walking: false,
           running: false,
           todo: false,
+
         });
 
+
         setTeam([]);
+
       } finally {
+
         setIsLoading(false);
+
       }
+
     },
     [profileId],
   );
 
+
   /*
    * Reload Home whenever the screen
    * receives focus.
-   *
-   * Example:
-   * Finish workout
-   * → go Home
-   * → Workout becomes COMPLETE
    */
 
   useFocusEffect(
     useCallback(() => {
+
       loadHome();
+
     }, [loadHome]),
   );
+
 
   /*
    * ======================================
@@ -272,12 +293,15 @@ export default function HomeScreen() {
     profileLoading ||
     isLoading
   ) {
+
     return (
+
       <View
         style={
           styles.loadingScreen
         }
       >
+
         <ActivityIndicator
           size="small"
           color={
@@ -292,23 +316,47 @@ export default function HomeScreen() {
         >
           LOADING GYMATE...
         </Text>
+
       </View>
+
     );
+
   }
+
 
   /*
    * ======================================
    * NO PROFILE
    * ======================================
+   *
+   * This is also a safety net.
+   *
+   * Normally app/index.tsx should redirect
+   * here to /profile/create.
+   *
+   * But if the tab navigator opens directly,
+   * the user can still create a profile.
    */
 
   if (!profileId) {
+
     return (
+
       <View
         style={
           styles.emptyScreen
         }
       >
+
+        <Text
+          style={
+            styles.emptyLogo
+          }
+        >
+          GYMATE
+        </Text>
+
+
         <Text
           style={
             styles.emptyTitle
@@ -316,6 +364,7 @@ export default function HomeScreen() {
         >
           PROFILE REQUIRED
         </Text>
+
 
         <Text
           style={
@@ -325,9 +374,67 @@ export default function HomeScreen() {
           CREATE A PROFILE TO START
           YOUR GYMATE JOURNEY.
         </Text>
+
+
+        <Pressable
+          onPress={() =>
+            router.replace(
+              '/profile/create'
+            )
+          }
+          style={({ pressed }) => [
+
+            styles.createProfileButton,
+
+            pressed &&
+              styles.buttonPressed,
+
+          ]}
+        >
+
+          <Text
+            style={
+              styles.createProfileButtonText
+            }
+          >
+            CREATE PROFILE
+          </Text>
+
+        </Pressable>
+
+
+        <Pressable
+          onPress={() =>
+            router.push(
+              '/profile/login'
+            )
+          }
+          style={({ pressed }) => [
+
+            styles.loginButton,
+
+            pressed &&
+              styles.loginButtonPressed,
+
+          ]}
+        >
+
+          <Text
+            style={
+              styles.loginButtonText
+            }
+          >
+            LOGIN
+          </Text>
+
+        </Pressable>
+
       </View>
+
     );
+
   }
+
 
   /*
    * ======================================
@@ -336,6 +443,7 @@ export default function HomeScreen() {
    */
 
   const activityList = [
+
     {
       label: 'WORKOUT',
       completed:
@@ -365,7 +473,9 @@ export default function HomeScreen() {
       completed:
         activities.todo,
     },
+
   ];
+
 
   const completedActivities =
     activityList.filter(
@@ -373,20 +483,20 @@ export default function HomeScreen() {
         activity.completed,
     ).length;
 
+
   const totalActivities =
     activityList.length;
+
 
   const progress =
     completedActivities /
     totalActivities;
 
+
   /*
    * ======================================
    * HOME PARTNER
    * ======================================
-   *
-   * The first Pokémon in the current
-   * team becomes the Home partner.
    */
 
   const partner =
@@ -397,23 +507,34 @@ export default function HomeScreen() {
         )[0]
       : null;
 
+
   let partnerProgress = 0;
 
+
   if (partner) {
+
     const xpPerLevel =
       getPokemonXPPerLevel();
+
 
     const maxLevel =
       getPokemonMaxLevel();
 
+
     partnerProgress =
       partner.userPokemon.level >=
       maxLevel
+
         ? 1
-        : (partner.userPokemon.xp %
-            xpPerLevel) /
+
+        : (
+            partner.userPokemon.xp %
+            xpPerLevel
+          ) /
           xpPerLevel;
+
   }
+
 
   /*
    * ======================================
@@ -422,33 +543,29 @@ export default function HomeScreen() {
    */
 
   return (
+
     <ScrollView
       style={
         styles.container
       }
-      contentContainerStyle={[
-        styles.content,
 
-        /*
-         * IMPORTANT:
-         *
-         * Adds the Android/iOS safe-area
-         * inset above the Home header.
-         *
-         * This keeps GYMATE and PROFILE
-         * below the notification bar.
-         */
+      contentContainerStyle={[
+
+        styles.content,
 
         {
           paddingTop:
             insets.top +
             spacing.lg,
         },
+
       ]}
+
       showsVerticalScrollIndicator={
         false
       }
     >
+
       {/* ==================================
           HEADER
           ================================== */}
@@ -458,9 +575,9 @@ export default function HomeScreen() {
           styles.header
         }
       >
-        {/* LEFT SIDE */}
 
         <View>
+
           <Text
             style={
               styles.smallText
@@ -469,6 +586,7 @@ export default function HomeScreen() {
             GYMATE
           </Text>
 
+
           <Text
             style={
               styles.greeting
@@ -476,30 +594,33 @@ export default function HomeScreen() {
           >
             WELCOME BACK
           </Text>
+
         </View>
 
-        {/* RIGHT SIDE */}
 
         <View
           style={
             styles.headerRight
           }
         >
+
           <Pressable
-            style={({
-              pressed,
-            }) => [
+            style={({ pressed }) => [
+
               styles.profileButton,
 
               pressed &&
                 styles.buttonPressed,
+
             ]}
+
             onPress={() =>
               router.push(
                 '/(tabs)/profile',
               )
             }
           >
+
             <Text
               style={
                 styles.profileButtonText
@@ -507,10 +628,13 @@ export default function HomeScreen() {
             >
               PROFILE
             </Text>
+
           </Pressable>
+
         </View>
+
       </View>
-      
+
 
       {/* ==================================
           TODAY'S PROGRESS
@@ -521,6 +645,7 @@ export default function HomeScreen() {
           styles.progressCard
         }
       >
+
         <Text
           style={
             styles.sectionTitle
@@ -529,11 +654,13 @@ export default function HomeScreen() {
           TODAY'S PROGRESS
         </Text>
 
+
         <View
           style={
             styles.progressHeader
           }
         >
+
           <Text
             style={
               styles.progressPercentage
@@ -543,6 +670,7 @@ export default function HomeScreen() {
             {totalActivities}
           </Text>
 
+
           <Text
             style={
               styles.progressText
@@ -550,7 +678,9 @@ export default function HomeScreen() {
           >
             ACTIVITIES
           </Text>
+
         </View>
+
 
         <ProgressBar
           progress={
@@ -558,30 +688,38 @@ export default function HomeScreen() {
           }
         />
 
+
         <View
           style={
             styles.activityList
           }
         >
+
           {activityList.map(
             activity => (
+
               <View
                 key={
                   activity.label
                 }
+
                 style={
                   styles.activityRow
                 }
               >
+
                 <View
                   style={[
                     styles.activityIndicator,
 
                     activity.completed &&
                       styles.activityIndicatorDone,
+
                   ]}
                 >
+
                   {activity.completed && (
+
                     <Text
                       style={
                         styles.checkmark
@@ -589,15 +727,20 @@ export default function HomeScreen() {
                     >
                       ✓
                     </Text>
+
                   )}
+
                 </View>
+
 
                 <Text
                   style={[
+
                     styles.activityLabel,
 
                     activity.completed &&
                       styles.activityLabelDone,
+
                   ]}
                 >
                   {
@@ -605,23 +748,33 @@ export default function HomeScreen() {
                   }
                 </Text>
 
+
                 <Text
                   style={[
+
                     styles.activityStatus,
 
                     activity.completed &&
                       styles.activityStatusDone,
+
                   ]}
                 >
+
                   {activity.completed
                     ? 'COMPLETE'
                     : 'PENDING'}
+
                 </Text>
+
               </View>
+
             ),
           )}
+
         </View>
+
       </PixelCard>
+
 
       {/* ==================================
           YOUR PARTNER
@@ -632,6 +785,7 @@ export default function HomeScreen() {
           styles.partnerCard
         }
       >
+
         <Text
           style={
             styles.sectionTitle
@@ -640,38 +794,50 @@ export default function HomeScreen() {
           YOUR PARTNER
         </Text>
 
+
         {partner &&
         partner.species ? (
+
           <View
             style={
               styles.partnerContent
             }
           >
+
             <PokemonSprite
               spriteAssetId={
                 partner.species
                   .spriteAssetId
               }
+
               iconAssetId={
                 partner.species
                   .iconAssetId
               }
+
               name={
                 partner.species.name
               }
+
               rarity={
                 partner.species.rarity
               }
+
               size="sprite"
             />
+
 
             <Text
               style={
                 styles.partnerName
               }
             >
-              {partner.species.name.toUpperCase()}
+              {
+                partner.species.name
+                  .toUpperCase()
+              }
             </Text>
+
 
             <Text
               style={
@@ -685,36 +851,53 @@ export default function HomeScreen() {
               ).padStart(2, '0')}
             </Text>
 
+
             <View
               style={
                 styles.partnerProgress
               }
             >
+
               <ProgressBar
                 progress={
                   partnerProgress
                 }
               />
+
             </View>
+
 
             <Text
               style={
                 styles.xpText
               }
             >
-              {partner.userPokemon.xp %
-                getPokemonXPPerLevel()}
+
+              {
+                partner.userPokemon.xp %
+                getPokemonXPPerLevel()
+              }
+
               {' / '}
-              {getPokemonXPPerLevel()}
+
+              {
+                getPokemonXPPerLevel()
+              }
+
               {' XP'}
+
             </Text>
+
           </View>
+
         ) : (
+
           <View
             style={
               styles.noPartner
             }
           >
+
             <Text
               style={
                 styles.noPartnerTitle
@@ -722,6 +905,7 @@ export default function HomeScreen() {
             >
               NO PARTNER YET
             </Text>
+
 
             <Text
               style={
@@ -731,16 +915,18 @@ export default function HomeScreen() {
               CHOOSE YOUR STARTER
               FROM THE POKÉMON TAB.
             </Text>
+
           </View>
+
         )}
 
-        
       </PixelCard>
 
-       
     </ScrollView>
+
   );
 }
+
 
 /*
  * ========================================
@@ -750,78 +936,236 @@ export default function HomeScreen() {
 
 const styles =
   StyleSheet.create({
+
     container: {
       flex: 1,
+
       backgroundColor:
         colors.background,
     },
+
 
     content: {
       padding:
         spacing.lg,
 
-      /*
-       * Extra bottom space so the final
-       * content doesn't touch the tab bar.
-       */
       paddingBottom:
         spacing.xxxl,
     },
 
+
     loadingScreen: {
       flex: 1,
+
       backgroundColor:
         colors.background,
-      alignItems: 'center',
+
+      alignItems:
+        'center',
+
       justifyContent:
         'center',
     },
+
 
     loadingText: {
       color:
         colors.textSecondary,
-      fontFamily: 'VT323',
+
+      fontFamily:
+        'VT323',
+
       fontSize: 18,
+
       marginTop:
         spacing.sm,
     },
 
+
+    /*
+     * ==============================
+     * NO PROFILE
+     * ==============================
+     */
+
     emptyScreen: {
       flex: 1,
+
       backgroundColor:
         colors.background,
-      alignItems: 'center',
+
+      alignItems:
+        'center',
+
       justifyContent:
         'center',
+
       padding:
         spacing.xl,
     },
 
-    emptyTitle: {
-      color: colors.text,
+
+    emptyLogo: {
       fontFamily:
         'PressStart2P',
-      fontSize: 14,
-      textAlign: 'center',
+
+      fontSize: 22,
+
+      color:
+        colors.primary,
+
+      marginBottom:
+        spacing.xl,
     },
+
+
+    emptyTitle: {
+      color:
+        colors.text,
+
+      fontFamily:
+        'PressStart2P',
+
+      fontSize: 14,
+
+      textAlign:
+        'center',
+    },
+
 
     emptyText: {
       color:
         colors.textSecondary,
-      fontFamily: 'VT323',
+
+      fontFamily:
+        'VT323',
+
       fontSize: 18,
-      textAlign: 'center',
+
+      textAlign:
+        'center',
+
       marginTop:
         spacing.md,
+
       lineHeight: 24,
+
+      maxWidth: 300,
     },
+
+
+    createProfileButton: {
+      minHeight: 56,
+
+      width: '100%',
+
+      maxWidth: 300,
+
+      backgroundColor:
+        colors.primary,
+
+      borderWidth: 2,
+
+      borderColor:
+        colors.primary,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      marginTop:
+        spacing.xl,
+
+      paddingHorizontal:
+        spacing.lg,
+    },
+
+
+    createProfileButtonText: {
+      fontFamily:
+        'PressStart2P',
+
+      fontSize: 10,
+
+      color:
+        colors.background,
+
+      textAlign:
+        'center',
+    },
+
+
+    loginButton: {
+      minHeight: 52,
+
+      width: '100%',
+
+      maxWidth: 300,
+
+      borderWidth: 2,
+
+      borderColor:
+        colors.primary,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      marginTop:
+        spacing.md,
+
+      paddingHorizontal:
+        spacing.lg,
+    },
+
+
+    loginButtonText: {
+      fontFamily:
+        'PressStart2P',
+
+      fontSize: 10,
+
+      color:
+        colors.primary,
+
+      textAlign:
+        'center',
+    },
+
+
+    buttonPressed: {
+      opacity: 0.65,
+
+      transform: [
+        {
+          translateY: 2,
+        },
+      ],
+    },
+
+
+    loginButtonPressed: {
+      opacity: 0.65,
+
+      transform: [
+        {
+          translateY: 2,
+        },
+      ],
+    },
+
 
     /* ==============================
        HEADER
        ============================== */
 
     header: {
-      flexDirection: 'row',
+      flexDirection:
+        'row',
 
       justifyContent:
         'space-between',
@@ -833,10 +1177,12 @@ const styles =
         spacing.xl,
     },
 
+
     headerRight: {
       alignItems:
         'flex-end',
     },
+
 
     smallText: {
       fontFamily:
@@ -851,14 +1197,17 @@ const styles =
         spacing.md,
     },
 
+
     greeting: {
-      fontFamily: 'VT323',
+      fontFamily:
+        'VT323',
 
       fontSize: 22,
 
       color:
         colors.textSecondary,
     },
+
 
     profileButton: {
       borderWidth: 2,
@@ -876,6 +1225,7 @@ const styles =
         spacing.sm,
     },
 
+
     profileButtonText: {
       fontFamily:
         'PressStart2P',
@@ -886,15 +1236,6 @@ const styles =
         colors.primary,
     },
 
-    buttonPressed: {
-      opacity: 0.65,
-
-      transform: [
-        {
-          translateY: 2,
-        },
-      ],
-    },
 
     /* ==============================
        SECTION
@@ -913,6 +1254,7 @@ const styles =
         spacing.lg,
     },
 
+
     /* ==============================
        TODAY'S PROGRESS
        ============================== */
@@ -922,8 +1264,10 @@ const styles =
         spacing.lg,
     },
 
+
     progressHeader: {
-      flexDirection: 'row',
+      flexDirection:
+        'row',
 
       alignItems:
         'flex-end',
@@ -935,6 +1279,7 @@ const styles =
         spacing.sm,
     },
 
+
     progressPercentage: {
       fontFamily:
         'PressStart2P',
@@ -945,8 +1290,10 @@ const styles =
         colors.primary,
     },
 
+
     progressText: {
-      fontFamily: 'VT323',
+      fontFamily:
+        'VT323',
 
       fontSize: 20,
 
@@ -954,17 +1301,21 @@ const styles =
         colors.textSecondary,
     },
 
+
     activityList: {
       marginTop:
         spacing.lg,
 
-      gap: spacing.sm,
+      gap:
+        spacing.sm,
     },
+
 
     activityRow: {
       minHeight: 42,
 
-      flexDirection: 'row',
+      flexDirection:
+        'row',
 
       alignItems:
         'center',
@@ -980,6 +1331,7 @@ const styles =
       borderColor:
         colors.border,
     },
+
 
     activityIndicator: {
       width: 22,
@@ -1001,6 +1353,7 @@ const styles =
         spacing.sm,
     },
 
+
     activityIndicatorDone: {
       backgroundColor:
         colors.primary,
@@ -1009,15 +1362,19 @@ const styles =
         colors.primary,
     },
 
-    checkmark: {
-      color: '#000',
 
-      fontFamily: 'VT323',
+    checkmark: {
+      color:
+        '#000',
+
+      fontFamily:
+        'VT323',
 
       fontSize: 20,
 
       lineHeight: 20,
     },
+
 
     activityLabel: {
       flex: 1,
@@ -1031,10 +1388,12 @@ const styles =
         colors.textSecondary,
     },
 
+
     activityLabelDone: {
       color:
         colors.text,
     },
+
 
     activityStatus: {
       fontFamily:
@@ -1046,10 +1405,12 @@ const styles =
         colors.textMuted,
     },
 
+
     activityStatusDone: {
       color:
         colors.primary,
     },
+
 
     /* ==============================
        PARTNER
@@ -1060,10 +1421,12 @@ const styles =
         spacing.lg,
     },
 
+
     partnerContent: {
       alignItems:
         'center',
     },
+
 
     partnerName: {
       fontFamily:
@@ -1078,8 +1441,10 @@ const styles =
         spacing.md,
     },
 
+
     partnerLevel: {
-      fontFamily: 'VT323',
+      fontFamily:
+        'VT323',
 
       fontSize: 20,
 
@@ -1093,12 +1458,15 @@ const styles =
         spacing.md,
     },
 
+
     partnerProgress: {
       width: '100%',
     },
 
+
     xpText: {
-      fontFamily: 'VT323',
+      fontFamily:
+        'VT323',
 
       fontSize: 17,
 
@@ -1109,6 +1477,7 @@ const styles =
         spacing.sm,
     },
 
+
     noPartner: {
       alignItems:
         'center',
@@ -1116,6 +1485,7 @@ const styles =
       paddingVertical:
         spacing.xl,
     },
+
 
     noPartnerTitle: {
       fontFamily:
@@ -1127,17 +1497,21 @@ const styles =
         colors.primary,
     },
 
+
     noPartnerText: {
-      fontFamily: 'VT323',
+      fontFamily:
+        'VT323',
 
       fontSize: 17,
 
       color:
         colors.textSecondary,
 
-      textAlign: 'center',
+      textAlign:
+        'center',
 
       marginTop:
         spacing.sm,
     },
+
   });

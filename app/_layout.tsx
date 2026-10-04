@@ -37,7 +37,9 @@ import {
   colors,
 } from '../constants/theme';
 
+
 export default function RootLayout() {
+
   /*
    * ========================================
    * FONTS
@@ -45,12 +47,15 @@ export default function RootLayout() {
    */
 
   const [fontsLoaded] = useFonts({
+
     PressStart2P:
       PressStart2P_400Regular,
 
     VT323:
       VT323_400Regular,
+
   });
+
 
   /*
    * ========================================
@@ -63,10 +68,12 @@ export default function RootLayout() {
     setDatabaseInitialized,
   ] = useState(false);
 
+
   const [
     databaseError,
     setDatabaseError,
   ] = useState(false);
+
 
   /*
    * ========================================
@@ -75,23 +82,38 @@ export default function RootLayout() {
    */
 
   useEffect(() => {
-    const setupDatabase = async () => {
-      try {
-        await initializeDatabase();
 
-        setDatabaseInitialized(true);
-      } catch (error) {
-        console.error(
-          'Failed to initialize Gymate database:',
-          error
-        );
+    const setupDatabase =
+      async () => {
 
-        setDatabaseError(true);
-      }
-    };
+        try {
+
+          await initializeDatabase();
+
+          setDatabaseInitialized(
+            true
+          );
+
+        } catch (error) {
+
+          console.error(
+            'Failed to initialize Gymate database:',
+            error
+          );
+
+          setDatabaseError(
+            true
+          );
+
+        }
+
+      };
+
 
     setupDatabase();
+
   }, []);
+
 
   /*
    * ========================================
@@ -100,23 +122,46 @@ export default function RootLayout() {
    */
 
   if (!fontsLoaded) {
+
     return (
-      <View style={styles.loadingScreen}>
-        <Text style={styles.loadingTitle}>
+
+      <View
+        style={
+          styles.loadingScreen
+        }
+      >
+
+        <Text
+          style={
+            styles.loadingTitle
+          }
+        >
           GYMATE
         </Text>
 
+
         <ActivityIndicator
           size="small"
-          color={colors.primary}
+          color={
+            colors.primary
+          }
         />
 
-        <Text style={styles.loadingText}>
+
+        <Text
+          style={
+            styles.loadingText
+          }
+        >
           LOADING...
         </Text>
+
       </View>
+
     );
+
   }
+
 
   /*
    * ========================================
@@ -125,218 +170,321 @@ export default function RootLayout() {
    */
 
   if (!databaseInitialized) {
+
     return (
-      <View style={styles.loadingScreen}>
+
+      <View
+        style={
+          styles.loadingScreen
+        }
+      >
+
         {databaseError ? (
+
           <>
-            <Text style={styles.errorTitle}>
+
+            <Text
+              style={
+                styles.errorTitle
+              }
+            >
               GYMATE
             </Text>
 
-            <Text style={styles.errorText}>
+
+            <Text
+              style={
+                styles.errorText
+              }
+            >
               DATABASE ERROR
             </Text>
 
-            <Text style={styles.errorSubtext}>
+
+            <Text
+              style={
+                styles.errorSubtext
+              }
+            >
               PLEASE RESTART THE APP.
             </Text>
+
           </>
+
         ) : (
+
           <>
-            <Text style={styles.loadingTitle}>
+
+            <Text
+              style={
+                styles.loadingTitle
+              }
+            >
               GYMATE
             </Text>
 
+
             <ActivityIndicator
               size="small"
-              color={colors.primary}
+              color={
+                colors.primary
+              }
             />
 
-            <Text style={styles.loadingText}>
+
+            <Text
+              style={
+                styles.loadingText
+              }
+            >
               INITIALIZING DATABASE...
             </Text>
+
           </>
+
         )}
+
       </View>
+
     );
+
   }
+
 
   /*
    * ========================================
    * APPLICATION
    * ========================================
    *
-   * SafeAreaProvider
-   *       ↓
-   * ProfileProvider
-   *       ↓
-   * WorkoutProvider
-   *       ↓
-   * Navigation
+   * IMPORTANT:
+   *
+   * app/index.tsx is intentionally the
+   * entry route.
+   *
+   * It decides:
+   *
+   * No profile
+   *      ↓
+   * profile/create
+   *
+   * Profile but no details
+   *      ↓
+   * profile/setup
+   *
+   * Fully configured profile
+   *      ↓
+   * (tabs)
+   *
+   * We therefore do NOT manually make
+   * (tabs) the initial route here.
+   * ========================================
    */
 
   return (
+
     <SafeAreaProvider>
+
       <ProfileProvider>
+
         <WorkoutProvider>
+
           <SoundProvider>
+
             <MusicProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
 
-            {/* ==================================
-                MAIN APPLICATION
-                ================================== */}
+              <Stack
+                initialRouteName="index"
+                screenOptions={{
+                  headerShown: false,
+                }}
+              >
 
-            <Stack.Screen
-              name="(tabs)"
-              options={{
-                headerShown: false,
-              }}
-            />
+                {/* ==================================
+                    ROOT ENTRY
+                    ================================== */}
 
-            {/* ==================================
-                PROFILE
-                ================================== */}
+                <Stack.Screen
+                  name="index"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-            <Stack.Screen
-              name="profile/create"
-              options={{
-                headerShown: false,
-              }}
-            />
 
-            <Stack.Screen
-              name="profile/setup"
-              options={{
-                headerShown: false,
-              }}
-            />
+                {/* ==================================
+                    MAIN APPLICATION
+                    ================================== */}
 
-            <Stack.Screen
-  name="profile/login"
-  options={{
-    headerShown: false,
-  }}
-/>
+                <Stack.Screen
+                  name="(tabs)"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-            <Stack.Screen
-              name="profile/index"
-              options={{
-                headerShown: false,
-              }}
-            />
 
-            {/* ==================================
-                WORKOUT
-                ================================== */}
+                {/* ==================================
+                    PROFILE
+                    ================================== */}
 
-            <Stack.Screen
-              name="workout/[splitId]"
-              options={{
-                headerShown: false,
-              }}
-            />
+                <Stack.Screen
+                  name="profile/create"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-            <Stack.Screen
-              name="workout/active"
-              options={{
-                headerShown: false,
-              }}
-            />
 
-            <Stack.Screen
-              name="workout/add-exercise/[splitId]"
-              options={{
-                headerShown: false,
-              }}
-            />
+                <Stack.Screen
+                  name="profile/setup"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-            <Stack.Screen
-              name="workout/exercise"
-              options={{
-                headerShown: false,
-              }}
-            />
 
-            <Stack.Screen
-              name="workout/add-set"
-              options={{
-                headerShown: false,
-              }}
-            />
+                <Stack.Screen
+                  name="profile/login"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-            <Stack.Screen
-              name="workout/summary"
-              options={{
-                headerShown: false,
-              }}
-            />
 
-            <Stack.Screen
-              name="workout/history"
-              options={{
-                headerShown: false,
-              }}
-            />
+                <Stack.Screen
+                  name="profile/index"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-            <Stack.Screen
-              name="workout/history/[workoutId]"
-              options={{
-                headerShown: false,
-              }}
-            />
 
-            {/* ==================================
-                POKÉMON
-                ================================== */}
+                {/* ==================================
+                    WORKOUT
+                    ================================== */}
 
-            <Stack.Screen
-              name="pokemon/pc"
-              options={{
-                headerShown: false,
-              }}
-            />
+                <Stack.Screen
+                  name="workout/[splitId]"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-            <Stack.Screen
-              name="pokemon/shop"
-              options={{
-                headerShown: false,
-              }}
-            />
 
-            <Stack.Screen
-              name="pokemon/detail/[userPokemonId]"
-              options={{
-                headerShown: false,
-              }}
-            />
+                <Stack.Screen
+                  name="workout/active"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-            <Stack.Screen
-              name="pokemon/achievements"
-              options={{
-                headerShown: false,
-              }}
-            />
 
-            <Stack.Screen
-              name="pokemon/badges"
-              options={{
-                headerShown: false,
-              }}
-            />
+                <Stack.Screen
+                  name="workout/add-exercise/[splitId]"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-          </Stack>
-          </MusicProvider>
+
+                <Stack.Screen
+                  name="workout/exercise"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+
+                <Stack.Screen
+                  name="workout/add-set"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+
+                <Stack.Screen
+                  name="workout/summary"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+
+                <Stack.Screen
+                  name="workout/history"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+
+                <Stack.Screen
+                  name="workout/history/[workoutId]"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+
+                {/* ==================================
+                    POKÉMON
+                    ================================== */}
+
+                <Stack.Screen
+                  name="pokemon/pc"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+
+                <Stack.Screen
+                  name="pokemon/shop"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+
+                <Stack.Screen
+                  name="pokemon/detail/[userPokemonId]"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+
+                <Stack.Screen
+                  name="pokemon/achievements"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+
+                <Stack.Screen
+                  name="pokemon/badges"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+
+              </Stack>
+
+            </MusicProvider>
+
           </SoundProvider>
+
         </WorkoutProvider>
+
       </ProfileProvider>
+
     </SafeAreaProvider>
+
   );
 }
+
 
 /*
  * ========================================
@@ -344,83 +492,98 @@ export default function RootLayout() {
  * ========================================
  */
 
-const styles = StyleSheet.create({
-  loadingScreen: {
-    flex: 1,
+const styles =
+  StyleSheet.create({
 
-    backgroundColor:
-      colors.background,
+    loadingScreen: {
+      flex: 1,
 
-    alignItems: 'center',
+      backgroundColor:
+        colors.background,
 
-    justifyContent: 'center',
-  },
+      alignItems:
+        'center',
 
-  loadingTitle: {
-    fontFamily:
-      'PressStart2P',
+      justifyContent:
+        'center',
+    },
 
-    fontSize: 20,
 
-    color:
-      colors.primary,
+    loadingTitle: {
+      fontFamily:
+        'PressStart2P',
 
-    marginBottom: 24,
+      fontSize: 20,
 
-    textAlign: 'center',
-  },
+      color:
+        colors.primary,
 
-  loadingText: {
-    fontFamily:
-      'VT323',
+      marginBottom: 24,
 
-    fontSize: 20,
+      textAlign:
+        'center',
+    },
 
-    color:
-      colors.textSecondary,
 
-    marginTop: 12,
+    loadingText: {
+      fontFamily:
+        'VT323',
 
-    textAlign: 'center',
-  },
+      fontSize: 20,
 
-  errorTitle: {
-    fontFamily:
-      'PressStart2P',
+      color:
+        colors.textSecondary,
 
-    fontSize: 20,
+      marginTop: 12,
 
-    color:
-      colors.primary,
+      textAlign:
+        'center',
+    },
 
-    marginBottom: 24,
 
-    textAlign: 'center',
-  },
+    errorTitle: {
+      fontFamily:
+        'PressStart2P',
 
-  errorText: {
-    fontFamily:
-      'PressStart2P',
+      fontSize: 20,
 
-    fontSize: 12,
+      color:
+        colors.primary,
 
-    color:
-      colors.text,
+      marginBottom: 24,
 
-    marginBottom: 12,
+      textAlign:
+        'center',
+    },
 
-    textAlign: 'center',
-  },
 
-  errorSubtext: {
-    fontFamily:
-      'VT323',
+    errorText: {
+      fontFamily:
+        'PressStart2P',
 
-    fontSize: 20,
+      fontSize: 12,
 
-    color:
-      colors.textSecondary,
+      color:
+        colors.text,
 
-    textAlign: 'center',
-  },
-});
+      marginBottom: 12,
+
+      textAlign:
+        'center',
+    },
+
+
+    errorSubtext: {
+      fontFamily:
+        'VT323',
+
+      fontSize: 20,
+
+      color:
+        colors.textSecondary,
+
+      textAlign:
+        'center',
+    },
+
+  });

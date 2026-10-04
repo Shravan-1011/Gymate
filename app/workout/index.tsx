@@ -9,21 +9,36 @@ import {
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { workoutSplits } from '../../data/workoutSplits';
+import { useState } from 'react';
+
 import {
   colors,
   spacing,
 } from '../../constants/theme';
 
+import { workoutSplits } from '../../data/workoutSplits';
+
+type ProgramType =
+  | 'ppl'
+  | 'upper-lower'
+  | null;
+
 export default function WorkoutSplitScreen() {
-  /*
-   * ========================================
-   * SELECT SPLIT
-   * ========================================
-   *
-   * Once the user chooses a split, we open
-   * the existing workout screen for that split.
-   */
+  const [expandedProgram, setExpandedProgram] =
+    useState<ProgramType>(null);
+
+  // ========================================
+  // FIND SPLIT
+  // ========================================
+
+  const getSplit = (id: string) =>
+    workoutSplits.find(
+      (split) => split.id === id
+    );
+
+  // ========================================
+  // OPEN ACTUAL WORKOUT SPLIT
+  // ========================================
 
   const handleSelectSplit = (
     splitId: string
@@ -36,11 +51,23 @@ export default function WorkoutSplitScreen() {
     });
   };
 
-  /*
-   * ========================================
-   * BACK
-   * ========================================
-   */
+  // ========================================
+  // TOGGLE PROGRAM
+  // ========================================
+
+  const toggleProgram = (
+    program: ProgramType
+  ) => {
+    setExpandedProgram((current) =>
+      current === program
+        ? null
+        : program
+    );
+  };
+
+  // ========================================
+  // BACK
+  // ========================================
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -50,11 +77,239 @@ export default function WorkoutSplitScreen() {
     }
   };
 
-  /*
-   * ========================================
-   * SCREEN
-   * ========================================
-   */
+  // ========================================
+  // SPLIT CARD
+  // ========================================
+
+  const renderSplitCard = (
+    splitId: string
+  ) => {
+    const split = getSplit(splitId);
+
+    if (!split) {
+      return null;
+    }
+
+    return (
+      <Pressable
+        key={split.id}
+        style={({ pressed }) => [
+          styles.splitCard,
+          pressed &&
+            styles.splitCardPressed,
+        ]}
+        onPress={() =>
+          handleSelectSplit(split.id)
+        }
+      >
+        <View style={styles.splitInfo}>
+          <Text style={styles.splitName}>
+            {split.name}
+          </Text>
+
+          <Text
+            style={
+              styles.splitDescription
+            }
+          >
+            {split.shortDescription}
+          </Text>
+
+          {split.targetMuscles.length >
+            0 && (
+            <Text
+              style={
+                styles.targetMuscles
+              }
+            >
+              {split.targetMuscles
+                .map((muscle) =>
+                  muscle
+                    .replace(/-/g, ' ')
+                    .toUpperCase()
+                )
+                .join(' • ')}
+            </Text>
+          )}
+        </View>
+
+        <View
+          style={
+            styles.arrowContainer
+          }
+        >
+          <Text style={styles.arrow}>
+            ›
+          </Text>
+        </View>
+      </Pressable>
+    );
+  };
+
+  // ========================================
+  // PROGRAM CARD
+  // ========================================
+
+  const renderProgramCard = (
+    type: 'ppl' | 'upper-lower',
+    title: string,
+    description: string,
+    days: string[]
+  ) => {
+    const expanded =
+      expandedProgram === type;
+
+    return (
+      <View
+        key={type}
+        style={styles.programWrapper}
+      >
+        <Pressable
+          style={({ pressed }) => [
+            styles.programCard,
+            expanded &&
+              styles.programCardExpanded,
+            pressed &&
+              styles.programCardPressed,
+          ]}
+          onPress={() =>
+            toggleProgram(type)
+          }
+        >
+          <View
+            style={
+              styles.programInfo
+            }
+          >
+            <Text
+              style={
+                styles.programName
+              }
+            >
+              {title}
+            </Text>
+
+            <Text
+              style={
+                styles.programDescription
+              }
+            >
+              {description}
+            </Text>
+
+            <Text
+              style={
+                styles.programDays
+              }
+            >
+              {days.join(' • ')}
+            </Text>
+          </View>
+
+          <Text
+            style={
+              styles.programArrow
+            }
+          >
+            {expanded ? '⌄' : '›'}
+          </Text>
+        </Pressable>
+
+        {expanded && (
+          <View
+            style={
+              styles.daySelection
+            }
+          >
+            <Text
+              style={
+                styles.daySelectionLabel
+              }
+            >
+              CHOOSE TODAY'S WORKOUT
+            </Text>
+
+            <View
+              style={
+                styles.dayList
+              }
+            >
+              {days.map((day) => {
+                const splitId =
+                  day === 'PUSH'
+                    ? 'push'
+                    : day === 'PULL'
+                      ? 'pull'
+                      : day === 'LEGS'
+                        ? 'legs'
+                        : day ===
+                            'UPPER BODY'
+                          ? 'upper'
+                          : 'lower';
+
+                const split =
+                  getSplit(splitId);
+
+                if (!split) {
+                  return null;
+                }
+
+                return (
+                  <Pressable
+                    key={splitId}
+                    style={({
+                      pressed,
+                    }) => [
+                      styles.dayCard,
+                      pressed &&
+                        styles.dayCardPressed,
+                    ]}
+                    onPress={() =>
+                      handleSelectSplit(
+                        splitId
+                      )
+                    }
+                  >
+                    <View>
+                      <Text
+                        style={
+                          styles.dayName
+                        }
+                      >
+                        {split.name}
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.dayDescription
+                        }
+                      >
+                        {
+                          split.shortDescription
+                        }
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={
+                        styles.dayArrow
+                      }
+                    >
+                      ›
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // ========================================
+  // SCREEN
+  // ========================================
 
   return (
     <SafeAreaView
@@ -63,131 +318,186 @@ export default function WorkoutSplitScreen() {
     >
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={
+          styles.content
+        }
+        showsVerticalScrollIndicator={
+          false
+        }
       >
-        {/* ====================================
-            BACK
-            ==================================== */}
+        {/* BACK */}
 
         <Pressable
           style={styles.backRow}
           onPress={handleBack}
         >
-          <Text style={styles.backArrow}>
+          <Text
+            style={styles.backArrow}
+          >
             ‹
           </Text>
 
-          <Text style={styles.backText}>
+          <Text
+            style={styles.backText}
+          >
             BACK
           </Text>
         </Pressable>
 
-        {/* ====================================
-            HEADER
-            ==================================== */}
+        {/* HEADER */}
 
         <View style={styles.header}>
           <Text style={styles.heading}>
             START WORKOUT
           </Text>
 
-          <Text style={styles.subheading}>
+          <Text
+            style={styles.subheading}
+          >
             CHOOSE YOUR SPLIT
           </Text>
 
-          <Text style={styles.description}>
-            SELECT HOW YOU WANT TO TRAIN TODAY
+          <Text
+            style={styles.description}
+          >
+            SELECT HOW YOU WANT TO
+            TRAIN TODAY
           </Text>
         </View>
 
-        {/* ====================================
-            SPLITS
-            ==================================== */}
+        {/* ==================================
+            STANDARD
+            ================================== */}
 
-        <View style={styles.splitSection}>
-          <Text style={styles.sectionLabel}>
-            AVAILABLE SPLITS
+        <View
+          style={styles.section}
+        >
+          <Text
+            style={styles.sectionLabel}
+          >
+            STANDARD
           </Text>
 
-          <View style={styles.splitList}>
-            {workoutSplits.map((split) => (
-              <Pressable
-                key={split.id}
-                style={({ pressed }) => [
-                  styles.splitCard,
-                  pressed &&
-                    styles.splitCardPressed,
-                ]}
-                onPress={() =>
-                  handleSelectSplit(
-                    split.id
-                  )
-                }
-              >
-                <View style={styles.splitInfo}>
-                  <Text style={styles.splitName}>
-                    {split.name}
-                  </Text>
+          <View
+            style={styles.cardList}
+          >
+            {renderProgramCard(
+              'ppl',
+              'PUSH / PULL / LEGS',
+              'Classic 3-day training split',
+              [
+                'PUSH',
+                'PULL',
+                'LEGS',
+              ]
+            )}
 
-                  <Text
-                    style={
-                      styles.splitDescription
-                    }
-                  >
-                    {split.shortDescription}
-                  </Text>
-
-                  {/* ====================================
-                      TARGET MUSCLES
-                      ==================================== */}
-
-                  {split.targetMuscles &&
-                    split.targetMuscles.length >
-                      0 && (
-                      <Text
-                        style={
-                          styles.targetMuscles
-                        }
-                      >
-                        {split.targetMuscles
-                          .map((muscle) =>
-                            muscle
-                              .replace(
-                                '-',
-                                ' '
-                              )
-                              .toUpperCase()
-                          )
-                          .join(' • ')}
-                      </Text>
-                    )}
-                </View>
-
-                <View
-                  style={
-                    styles.arrowContainer
-                  }
-                >
-                  <Text style={styles.arrow}>
-                    ›
-                  </Text>
-                </View>
-              </Pressable>
-            ))}
+            {renderProgramCard(
+              'upper-lower',
+              'UPPER / LOWER BODY',
+              'Classic 2-day training split',
+              [
+                'UPPER BODY',
+                'LOWER BODY',
+              ]
+            )}
           </View>
         </View>
 
-        {/* ====================================
-            FOOTER
-            ==================================== */}
+        {/* ==================================
+            BRO SPLITS
+            ================================== */}
+
+        <View
+          style={styles.section}
+        >
+          <Text
+            style={styles.sectionLabel}
+          >
+            BRO SPLITS
+          </Text>
+
+          <View
+            style={styles.cardList}
+          >
+            {renderSplitCard(
+              'chest-triceps'
+            )}
+
+            {renderSplitCard(
+              'back-biceps'
+            )}
+
+            {renderSplitCard(
+              'legs-shoulders'
+            )}
+          </View>
+        </View>
+
+        {/* ==================================
+            INDIVIDUAL MUSCLE
+            ================================== */}
+
+        <View
+          style={styles.section}
+        >
+          <Text
+            style={styles.sectionLabel}
+          >
+            INDIVIDUAL MUSCLE
+          </Text>
+
+          <View
+            style={styles.cardList}
+          >
+            {renderSplitCard('chest')}
+
+            {renderSplitCard('back')}
+
+            {renderSplitCard(
+              'shoulders'
+            )}
+
+            {renderSplitCard('biceps')}
+
+            {renderSplitCard(
+              'triceps'
+            )}
+
+            {renderSplitCard(
+              'forearms'
+            )}
+
+            {renderSplitCard('quads')}
+
+            {renderSplitCard(
+              'hamstrings'
+            )}
+
+            {renderSplitCard('glutes')}
+
+            {renderSplitCard('calves')}
+
+            {renderSplitCard('abs')}
+
+            {renderSplitCard(
+              'hip-flexors'
+            )}
+          </View>
+        </View>
+
+        {/* FOOTER */}
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text
+            style={styles.footerText}
+          >
             CHOOSE YOUR BATTLE.
           </Text>
 
-          <Text style={styles.footerSubtext}>
+          <Text
+            style={styles.footerSubtext}
+          >
             YOUR WORKOUT STARTS HERE.
           </Text>
         </View>
@@ -196,108 +506,295 @@ export default function WorkoutSplitScreen() {
   );
 }
 
-/*
- * ========================================
- * STYLES
- * ========================================
- */
+// ========================================
+// STYLES
+// ========================================
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor:
+      colors.background,
   },
 
   content: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal:
+      spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: 140,
   },
 
-  /* ========================================
-     BACK
-     ======================================== */
+  // ======================================
+  // BACK
+  // ======================================
 
   backRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom:
+      spacing.xl,
   },
 
   backArrow: {
     fontFamily: 'VT323',
     fontSize: 36,
     color: colors.primary,
-    marginRight: spacing.sm,
+    marginRight:
+      spacing.sm,
   },
 
   backText: {
-    fontFamily: 'PressStart2P',
+    fontFamily:
+      'PressStart2P',
     fontSize: 10,
-    color: colors.textSecondary,
+    color:
+      colors.textSecondary,
   },
 
-  /* ========================================
-     HEADER
-     ======================================== */
+  // ======================================
+  // HEADER
+  // ======================================
 
   header: {
-    marginBottom: spacing.xl,
+    marginBottom:
+      spacing.xl,
   },
 
   heading: {
-    fontFamily: 'PressStart2P',
+    fontFamily:
+      'PressStart2P',
     fontSize: 18,
     color: colors.primary,
-    marginBottom: spacing.md,
+    marginBottom:
+      spacing.md,
   },
 
   subheading: {
-    fontFamily: 'PressStart2P',
+    fontFamily:
+      'PressStart2P',
     fontSize: 12,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom:
+      spacing.sm,
   },
 
   description: {
     fontFamily: 'VT323',
     fontSize: 20,
-    color: colors.textSecondary,
+    color:
+      colors.textSecondary,
+    lineHeight: 22,
   },
 
-  /* ========================================
-     SPLITS
-     ======================================== */
+  // ======================================
+  // SECTION
+  // ======================================
 
-  splitSection: {
-    marginBottom: spacing.xl,
+  section: {
+    marginBottom:
+      spacing.xl,
   },
 
   sectionLabel: {
-    fontFamily: 'PressStart2P',
+    fontFamily:
+      'PressStart2P',
     fontSize: 9,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
+    color:
+      colors.textSecondary,
+    marginBottom:
+      spacing.md,
   },
 
-  splitList: {
+  cardList: {
     gap: spacing.md,
   },
 
-  splitCard: {
-    minHeight: 100,
+  // ======================================
+  // PROGRAM CARD
+  // ======================================
+
+  programWrapper: {
+    width: '100%',
+  },
+
+  programCard: {
+    minHeight: 96,
 
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
 
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingHorizontal:
+      spacing.md,
+    paddingVertical:
+      spacing.md,
 
-    backgroundColor: colors.surface,
+    backgroundColor:
+      colors.surface,
 
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor:
+      colors.border,
+  },
+
+  programCardExpanded: {
+    borderColor:
+      colors.primary,
+  },
+
+  programCardPressed: {
+    opacity: 0.65,
+
+    transform: [
+      {
+        translateX: 2,
+      },
+    ],
+  },
+
+  programInfo: {
+    flex: 1,
+    paddingRight:
+      spacing.md,
+  },
+
+  programName: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 11,
+    color: colors.text,
+    marginBottom:
+      spacing.sm,
+    lineHeight: 17,
+  },
+
+  programDescription: {
+    fontFamily: 'VT323',
+    fontSize: 20,
+    color:
+      colors.textSecondary,
+    marginBottom:
+      spacing.sm,
+  },
+
+  programDays: {
+    fontFamily: 'VT323',
+    fontSize: 16,
+    color: colors.primary,
+  },
+
+  programArrow: {
+    fontFamily: 'VT323',
+    fontSize: 32,
+    color: colors.primary,
+    width: 28,
+    textAlign: 'center',
+  },
+
+  // ======================================
+  // DAY SELECTION
+  // ======================================
+
+  daySelection: {
+    marginTop: -2,
+
+    paddingHorizontal:
+      spacing.md,
+    paddingVertical:
+      spacing.md,
+
+    backgroundColor:
+      colors.background,
+
+    borderWidth: 2,
+    borderTopWidth: 0,
+    borderColor:
+      colors.primary,
+  },
+
+  daySelectionLabel: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 8,
+    color:
+      colors.textSecondary,
+    marginBottom:
+      spacing.md,
+  },
+
+  dayList: {
+    gap: spacing.sm,
+  },
+
+  dayCard: {
+    minHeight: 64,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
+
+    paddingHorizontal:
+      spacing.md,
+
+    backgroundColor:
+      colors.surface,
+
+    borderWidth: 1,
+    borderColor:
+      colors.border,
+  },
+
+  dayCardPressed: {
+    opacity: 0.65,
+  },
+
+  dayName: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 10,
+    color: colors.primary,
+    marginBottom:
+      spacing.xs,
+  },
+
+  dayDescription: {
+    fontFamily: 'VT323',
+    fontSize: 18,
+    color:
+      colors.textSecondary,
+  },
+
+  dayArrow: {
+    fontFamily: 'VT323',
+    fontSize: 30,
+    color: colors.primary,
+  },
+
+  // ======================================
+  // NORMAL SPLIT CARD
+  // ======================================
+
+  splitCard: {
+    minHeight: 96,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
+
+    paddingHorizontal:
+      spacing.md,
+    paddingVertical:
+      spacing.md,
+
+    backgroundColor:
+      colors.surface,
+
+    borderWidth: 2,
+    borderColor:
+      colors.border,
   },
 
   splitCardPressed: {
@@ -312,22 +809,27 @@ const styles = StyleSheet.create({
 
   splitInfo: {
     flex: 1,
-    paddingRight: spacing.md,
+    paddingRight:
+      spacing.md,
   },
 
   splitName: {
-    fontFamily: 'PressStart2P',
-    fontSize: 12,
+    fontFamily:
+      'PressStart2P',
+    fontSize: 11,
     color: colors.text,
-    marginBottom: spacing.sm,
-    lineHeight: 18,
+    marginBottom:
+      spacing.sm,
+    lineHeight: 17,
   },
 
   splitDescription: {
     fontFamily: 'VT323',
     fontSize: 20,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
+    color:
+      colors.textSecondary,
+    marginBottom:
+      spacing.sm,
     lineHeight: 21,
   },
 
@@ -338,43 +840,42 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* ========================================
-     ARROW
-     ======================================== */
-
   arrowContainer: {
     width: 28,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent:
+      'center',
   },
 
   arrow: {
     fontFamily: 'VT323',
-    fontSize: 36,
+    fontSize: 32,
     color: colors.primary,
   },
 
-  /* ========================================
-     FOOTER
-     ======================================== */
+  // ======================================
+  // FOOTER
+  // ======================================
 
   footer: {
     alignItems: 'center',
-    marginTop: spacing.md,
+    paddingTop:
+      spacing.md,
   },
 
   footerText: {
-    fontFamily: 'PressStart2P',
-    fontSize: 8,
+    fontFamily:
+      'PressStart2P',
+    fontSize: 9,
     color: colors.primary,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+    marginBottom:
+      spacing.sm,
   },
 
   footerSubtext: {
     fontFamily: 'VT323',
     fontSize: 18,
-    color: colors.textSecondary,
-    textAlign: 'center',
+    color:
+      colors.textSecondary,
   },
 });

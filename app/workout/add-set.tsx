@@ -41,6 +41,7 @@ export default function AddSetScreen() {
     useState<SetType>('working');
 
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   /*
    * ========================================
@@ -93,68 +94,89 @@ export default function AddSetScreen() {
    * ========================================
    */
 
-  const handleSaveSet = () => {
-    setError('');
+  const handleSaveSet = async () => {
+  if (isSaving) {
+    return;
+  }
 
-    const trimmedWeight =
-      weight.trim();
+  setError('');
 
-    const trimmedReps =
-      reps.trim();
+  const trimmedWeight =
+    weight.trim();
 
-    const parsedWeight =
-      Number(trimmedWeight);
+  const trimmedReps =
+    reps.trim();
 
-    const parsedReps =
-      Number(trimmedReps);
+  if (!trimmedWeight || !trimmedReps) {
+    setError(
+      'ENTER WEIGHT AND REPS'
+    );
+    return;
+  }
 
+  const parsedWeight =
+    Number(trimmedWeight);
+
+  const parsedReps =
+    Number(trimmedReps);
+
+  if (
+    !Number.isFinite(parsedWeight) ||
+    !Number.isFinite(parsedReps)
+  ) {
+    setError(
+      'ENTER VALID NUMBERS'
+    );
+    return;
+  }
+
+  if (parsedWeight < 0) {
+    setError(
+      'WEIGHT CANNOT BE NEGATIVE'
+    );
+    return;
+  }
+
+  if (parsedReps <= 0) {
+    setError(
+      'REPS MUST BE GREATER THAN 0'
+    );
+    return;
+  }
+
+  if (!Number.isInteger(parsedReps)) {
+    setError(
+      'REPS MUST BE A WHOLE NUMBER'
+    );
+    return;
+  }
+
+  setIsSaving(true);
+
+  try {
     /*
-     * VALIDATION
+     * Read the latest workout state
+     * before determining the set number.
      */
-
-    if (!trimmedWeight || !trimmedReps) {
-      setError(
-        'ENTER WEIGHT AND REPS'
+    const latestWorkoutExercise =
+      workout?.exercises.find(
+        (item) =>
+          item.exercise.id ===
+          exerciseId
       );
+
+    if (!latestWorkoutExercise) {
+      setError(
+        'EXERCISE NO LONGER EXISTS'
+      );
+      setIsSaving(false);
       return;
     }
-
-    if (
-      Number.isNaN(parsedWeight) ||
-      Number.isNaN(parsedReps)
-    ) {
-      setError(
-        'ENTER VALID NUMBERS'
-      );
-      return;
-    }
-
-    if (parsedWeight < 0) {
-      setError(
-        'WEIGHT CANNOT BE NEGATIVE'
-      );
-      return;
-    }
-
-    if (parsedReps <= 0) {
-      setError(
-        'REPS MUST BE GREATER THAN 0'
-      );
-      return;
-    }
-
-    /*
-     * NEXT SET NUMBER
-     */
 
     const nextSetNumber =
-      workoutExercise.sets.length + 1;
+      latestWorkoutExercise.sets.length + 1;
 
-    /*
-     * ADD SET
-     */
-
-    addSet(
+    await addSet(
       exerciseId,
       {
         id: `set-${Date.now()}`,
@@ -166,12 +188,20 @@ export default function AddSetScreen() {
       }
     );
 
-    /*
-     * RETURN TO EXERCISE
-     */
-
     router.back();
-  };
+  } catch (error) {
+    console.error(
+      'Failed to add workout set:',
+      error
+    );
+
+    setError(
+      'FAILED TO SAVE SET'
+    );
+
+    setIsSaving(false);
+  }
+};
 
   /*
    * ========================================
@@ -316,17 +346,22 @@ export default function AddSetScreen() {
       {/* SAVE */}
 
       <Pressable
-        style={({ pressed }) => [
-          styles.saveButton,
-          pressed &&
-            styles.buttonPressed,
-        ]}
-        onPress={handleSaveSet}
-      >
-        <Text style={styles.saveButtonText}>
-          SAVE SET
-        </Text>
-      </Pressable>
+  disabled={isSaving}
+  style={({ pressed }) => [
+    styles.saveButton,
+    isSaving && styles.saveButtonDisabled,
+    pressed &&
+      !isSaving &&
+      styles.buttonPressed,
+  ]}
+  onPress={handleSaveSet}
+>
+  <Text style={styles.saveButtonText}>
+    {isSaving
+      ? 'SAVING...'
+      : 'SAVE SET'}
+  </Text>
+</Pressable>
     </ScrollView>
   );
 }
@@ -525,4 +560,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.text,
   },
+
+  saveButtonDisabled: {
+  opacity: 0.5,
+},
 });

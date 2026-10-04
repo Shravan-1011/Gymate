@@ -67,6 +67,8 @@ export type GymateBackup = {
 
     username: string;
 
+    trainerSpriteId?: string | null;
+
     createdAt: string;
 
     updatedAt: string;

@@ -159,7 +159,8 @@ export default function ActiveWorkoutScreen() {
    * ========================================
    */
 
-  const handleFinishWorkout = async () => {
+  const handleFinishWorkout =
+  async () => {
     /*
      * Prevent duplicate presses.
      */
@@ -173,7 +174,7 @@ export default function ActiveWorkoutScreen() {
     }
 
     /*
-     * Profile ID is required for streak.
+     * Profile is required.
      */
 
     const profileId =
@@ -188,8 +189,8 @@ export default function ActiveWorkoutScreen() {
     }
 
     /*
-     * Store workout ID before changing
-     * workout state.
+     * Save the ID before the Context
+     * changes its active workout state.
      */
 
     const workoutId =
@@ -200,17 +201,27 @@ export default function ActiveWorkoutScreen() {
 
       /*
        * ====================================
+       * COMPLETE WORKOUT FIRST
+       * ====================================
+       *
+       * IMPORTANT:
+       *
+       * This MUST be awaited.
+       *
+       * SQLite must finish changing the
+       * workout from active → completed
+       * before Summary opens.
+       */
+
+      await finishWorkout();
+
+      /*
+       * ====================================
        * MARK DAY ACTIVE
        * ====================================
        *
-       * Completing a workout is a
-       * qualifying activity.
-       *
-       * This updates:
-       *
-       * - current streak
-       * - longest streak
-       * - last activity date
+       * Only mark the day active after the
+       * workout has successfully been saved.
        */
 
       const updatedStreak =
@@ -225,22 +236,13 @@ export default function ActiveWorkoutScreen() {
 
       /*
        * ====================================
-       * COMPLETE WORKOUT
-       * ====================================
-       */
-
-      finishWorkout();
-
-      /*
-       * ====================================
-       * NAVIGATE TO SUMMARY
+       * OPEN SUMMARY
        * ====================================
        *
-       * Summary will:
+       * At this point the workout should
+       * already exist in SQLite as completed.
        *
-       * 1. Load completed workout
-       * 2. Calculate performance
-       * 3. Award workout XP
+       * Summary can safely load it.
        */
 
       router.replace({
@@ -250,12 +252,16 @@ export default function ActiveWorkoutScreen() {
           workoutId,
         },
       });
-
     } catch (error) {
       console.error(
         'Failed to finish workout:',
         error
       );
+
+      /*
+       * Keep the user on the active workout
+       * if anything failed.
+       */
 
       setIsFinishing(false);
     }

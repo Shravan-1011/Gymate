@@ -1,634 +1,638 @@
-import React, {
-  useCallback,
-  useEffect,
-  useState,
-} from 'react';
+  import React, {
+    useCallback,
+    useEffect,
+    useState,
+  } from 'react';
 
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  import {
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    Alert,
+    View,
+  } from 'react-native';
 
-import { useRouter } from 'expo-router';
+  import { useRouter } from 'expo-router';
 
-import { useProfile } from '../../context/ProfileContext';
+  import { useProfile } from '../../context/ProfileContext';
 
-import { colors } from '../../constants/theme';
+  import { colors } from '../../constants/theme';
 
-import StepsCard from '../../components/activity/StepsCard';
-import RunningCard from '../../components/activity/RunningCard';
-import TodoCard from '../../components/activity/TodoCard';
+  import StepsCard from '../../components/activity/StepsCard';
+  import RunningCard from '../../components/activity/RunningCard';
+  import TodoCard from '../../components/activity/TodoCard';
 
-import {
-  getCurrentRunningSession,
-  startRunningLocationTracking,
-  startRunningSession,
-} from '../../services/runningTrackingService';
+  import {
+    getCurrentRunningSession,
+    startRunningLocationTracking,
+    startRunningSession,
+  } from '../../services/runningTrackingService';
 
-import type { RunningSession } from '../../types/activity';
-
-/*
- * ========================================
- * ACTIVITY SCREEN
- * ========================================
- */
-
-export default function ActivityScreen() {
-  const router = useRouter();
+  import type { RunningSession } from '../../types/activity';
 
   /*
-   * ========================================
-   * PROFILE
-   * ========================================
-   *
-   * Use the same real profile mechanism
-   * used by Diet.
-   */
+  * ========================================
+  * ACTIVITY SCREEN
+  * ========================================
+  */
 
-  const {
-    profile,
-    isLoading: profileLoading,
-  } = useProfile();
+  export default function ActivityScreen() {
+    const router = useRouter();
 
-  const profileId =
-    profile?.id ?? null;
+    /*
+    * ========================================
+    * PROFILE
+    * ========================================
+    *
+    * Use the same real profile mechanism
+    * used by Diet.
+    */
 
-  /*
-   * ========================================
-   * RUNNING STATE
-   * ========================================
-   */
+    const {
+      profile,
+      isLoading: profileLoading,
+    } = useProfile();
 
-  const [activeRun, setActiveRun] =
-    useState<RunningSession | null>(null);
+    const profileId =
+      profile?.id ?? null;
 
-  const [loadingRun, setLoadingRun] =
-    useState(true);
+    /*
+    * ========================================
+    * RUNNING STATE
+    * ========================================
+    */
 
-  const [startingRun, setStartingRun] =
-    useState(false);
+    const [activeRun, setActiveRun] =
+      useState<RunningSession | null>(null);
 
-  /*
-   * ========================================
-   * LOAD ACTIVE RUN
-   * ========================================
-   */
+    const [loadingRun, setLoadingRun] =
+      useState(true);
 
-  const loadActiveRun =
-    useCallback(async () => {
-      if (!profileId) {
-        setActiveRun(null);
-        setLoadingRun(false);
-        return;
-      }
+    const [startingRun, setStartingRun] =
+      useState(false);
 
-      try {
-        setLoadingRun(true);
+    /*
+    * ========================================
+    * LOAD ACTIVE RUN
+    * ========================================
+    */
 
-        const run =
-          await getCurrentRunningSession(
-            profileId,
+    const loadActiveRun =
+      useCallback(async () => {
+        if (!profileId) {
+          setActiveRun(null);
+          setLoadingRun(false);
+          return;
+        }
+
+        try {
+          setLoadingRun(true);
+
+          const run =
+            await getCurrentRunningSession(
+              profileId,
+            );
+
+          setActiveRun(run);
+        } catch (error) {
+          console.error(
+            '[Gymate] Failed to load active run:',
+            error,
           );
 
-        setActiveRun(run);
-      } catch (error) {
-        console.error(
-          '[Gymate] Failed to load active run:',
-          error,
-        );
+          setActiveRun(null);
+        } finally {
+          setLoadingRun(false);
+        }
+      }, [profileId]);
 
-        setActiveRun(null);
-      } finally {
-        setLoadingRun(false);
-      }
-    }, [profileId]);
+    /*
+    * ========================================
+    * LOAD RUN WHEN PROFILE IS READY
+    * ========================================
+    */
 
-  /*
-   * ========================================
-   * LOAD RUN WHEN PROFILE IS READY
-   * ========================================
-   */
+    useEffect(() => {
+      loadActiveRun();
+    }, [loadActiveRun]);
 
-  useEffect(() => {
-    loadActiveRun();
-  }, [loadActiveRun]);
+    /*
+    * ========================================
+    * START RUN
+    * ========================================
+    */
 
-  /*
-   * ========================================
-   * START RUN
-   * ========================================
-   */
-
-  async function handleStartRun() {
-    if (
-      !profileId ||
-      startingRun
-    ) {
-      return;
-    }
-
-    try {
-      setStartingRun(true);
-
-      const run =
-        await startRunningSession(
-          profileId,
-        );
-
-      await startRunningLocationTracking();
-
-      setActiveRun(run);
-
-      router.push({
-        pathname: '/activity/run',
-        params: {
-          profileId,
-          runId: run.id,
-        },
-      });
-    } catch (error) {
-      console.error(
-        '[Gymate] Failed to start run:',
-        error,
-      );
-    } finally {
-      setStartingRun(false);
-    }
+    async function handleStartRun() {
+  if (!profileId || startingRun) {
+    return;
   }
 
-  /*
-   * ========================================
-   * OPEN ACTIVE RUN
-   * ========================================
-   */
+  try {
+    setStartingRun(true);
 
-  function handleOpenRun() {
-    if (
-      !profileId ||
-      !activeRun
-    ) {
-      return;
-    }
+    const run = await startRunningSession(profileId);
+
+    setActiveRun(run);
 
     router.push({
       pathname: '/activity/run',
       params: {
         profileId,
-        runId: activeRun.id,
+        runId: run.id,
       },
     });
-  }
 
-  /*
-   * ========================================
-   * RUN HISTORY
-   * ========================================
-   */
-
-  function handleRunHistory() {
-    if (!profileId) {
-      return;
+    try {
+      await startRunningLocationTracking();
+    } catch (trackingError) {
+      console.error('[Gymate] Failed to start GPS tracking:', trackingError);
+      Alert.alert(
+        'GPS tracking issue',
+        trackingError instanceof Error ? trackingError.message : String(trackingError),
+      );
     }
-
-    router.push({
-      pathname: '/activity/run-history',
-      params: {
-        profileId,
-      },
-    });
-  }
-
-  /*
-   * ========================================
-   * PROFILE LOADING
-   * ========================================
-   */
-
-  if (profileLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator
-          size="large"
-          color={colors.primary}
-        />
-
-        <Text style={styles.loadingProfileText}>
-          LOADING PROFILE...
-        </Text>
-      </View>
+  } catch (error) {
+    console.error('[Gymate] Failed to start run:', error);
+    Alert.alert(
+      'Could not start run',
+      error instanceof Error ? error.message : 'Something went wrong starting the run.',
     );
+  } finally {
+    setStartingRun(false);
   }
-
-  /*
-   * ========================================
-   * NO PROFILE
-   * ========================================
-   */
-
-  if (!profileId) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emptyTitle}>
-          PROFILE REQUIRED
-        </Text>
-
-        <Text style={styles.emptyText}>
-          Create or select a profile to
-          start tracking activity.
-        </Text>
-      </View>
-    );
-  }
-
-  /*
-   * ========================================
-   * ACTIVITY SCREEN
-   * ========================================
-   */
-
-  return (
-    <View style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={
-          styles.content
-        }
-      >
-        {/* ====================================
-            HEADER
-            ==================================== */}
-
-        <Text style={styles.title}>
-          ACTIVITY
-        </Text>
-
-        <Text style={styles.subtitle}>
-          YOUR MOVEMENT JOURNEY
-        </Text>
-
-        {/* ====================================
-            STEPS
-            ==================================== */}
-
-        <StepsCard
-          profileId={profileId}
-        />
-
-        {/* ====================================
-            RUNNING
-            ==================================== */}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            RUNNING
-          </Text>
-
-          {loadingRun ? (
-            <View
-              style={styles.loadingCard}
-            >
-              <ActivityIndicator
-                size="small"
-                color={colors.primary}
-              />
-
-              <Text
-                style={styles.loadingText}
-              >
-                CHECKING ACTIVE RUN...
-              </Text>
-            </View>
-          ) : (
-            <RunningCard
-              active={
-                activeRun !== null
-              }
-
-              distanceMeters={
-                activeRun?.distanceMeters ??
-                0
-              }
-
-              durationSeconds={
-                activeRun?.durationSeconds ??
-                0
-              }
-
-              paceSecondsPerKm={
-                activeRun?.averagePaceSecondsPerKm ??
-                null
-              }
-
-              onStart={
-                handleStartRun
-              }
-
-              onOpenRun={
-                handleOpenRun
-              }
-
-              loading={
-                startingRun
-              }
-            />
-          )}
-
-          <Pressable
-            style={styles.historyButton}
-            onPress={
-              handleRunHistory
-            }
-          >
-            <View>
-              <Text
-                style={
-                  styles.historyTitle
-                }
-              >
-                RUN HISTORY
-              </Text>
-
-              <Text
-                style={
-                  styles.historySubtitle
-                }
-              >
-                VIEW YOUR PREVIOUS RUNS
-              </Text>
-            </View>
-
-            <Text
-              style={
-                styles.historyArrow
-              }
-            >
-              →
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* ====================================
-            DAILY TODO
-            ==================================== */}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            DAILY TODO
-          </Text>
-
-          <TodoCard
-            profileId={profileId}
-          />
-        </View>
-      </ScrollView>
-    </View>
-  );
 }
 
-/*
- * ========================================
- * STYLES
- * ========================================
- */
+    /*
+    * ========================================
+    * OPEN ACTIVE RUN
+    * ========================================
+    */
 
-const styles = StyleSheet.create({
-  /*
-   * ======================================
-   * MAIN
-   * ======================================
-   */
+    function handleOpenRun() {
+      if (
+        !profileId ||
+        !activeRun
+      ) {
+        return;
+      }
 
-  container: {
-    flex: 1,
-    backgroundColor:
-      colors.background,
-  },
-
-  content: {
-    paddingTop: 60,
-    paddingHorizontal: 18,
+      router.push({
+        pathname: '/activity/run',
+        params: {
+          profileId,
+          runId: activeRun.id,
+        },
+      });
+    }
 
     /*
-     * Extra space at the bottom so the
-     * final Todo content can comfortably
-     * scroll above the tab bar.
-     */
-    paddingBottom: 100,
-  },
+    * ========================================
+    * RUN HISTORY
+    * ========================================
+    */
+
+    function handleRunHistory() {
+      if (!profileId) {
+        return;
+      }
+
+      router.push({
+        pathname: '/activity/run-history',
+        params: {
+          profileId,
+        },
+      });
+    }
+
+    /*
+    * ========================================
+    * PROFILE LOADING
+    * ========================================
+    */
+
+    if (profileLoading) {
+      return (
+        <View style={styles.center}>
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
+          />
+
+          <Text style={styles.loadingProfileText}>
+            LOADING PROFILE...
+          </Text>
+        </View>
+      );
+    }
+
+    /*
+    * ========================================
+    * NO PROFILE
+    * ========================================
+    */
+
+    if (!profileId) {
+      return (
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>
+            PROFILE REQUIRED
+          </Text>
+
+          <Text style={styles.emptyText}>
+            Create or select a profile to
+            start tracking activity.
+          </Text>
+        </View>
+      );
+    }
+
+    /*
+    * ========================================
+    * ACTIVITY SCREEN
+    * ========================================
+    */
+
+    return (
+      <View style={styles.container}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={
+            styles.content
+          }
+        >
+          {/* ====================================
+              HEADER
+              ==================================== */}
+
+          <Text style={styles.title}>
+            ACTIVITY
+          </Text>
+
+          <Text style={styles.subtitle}>
+            YOUR MOVEMENT JOURNEY
+          </Text>
+
+          {/* ====================================
+              STEPS
+              ==================================== */}
+
+          <StepsCard
+            profileId={profileId}
+          />
+
+          {/* ====================================
+              RUNNING
+              ==================================== */}
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              RUNNING
+            </Text>
+
+            {loadingRun ? (
+              <View
+                style={styles.loadingCard}
+              >
+                <ActivityIndicator
+                  size="small"
+                  color={colors.primary}
+                />
+
+                <Text
+                  style={styles.loadingText}
+                >
+                  CHECKING ACTIVE RUN...
+                </Text>
+              </View>
+            ) : (
+              <RunningCard
+                active={
+                  activeRun !== null
+                }
+
+                distanceMeters={
+                  activeRun?.distanceMeters ??
+                  0
+                }
+
+                durationSeconds={
+                  activeRun?.durationSeconds ??
+                  0
+                }
+
+                paceSecondsPerKm={
+                  activeRun?.averagePaceSecondsPerKm ??
+                  null
+                }
+
+                onStart={
+                  handleStartRun
+                }
+
+                onOpenRun={
+                  handleOpenRun
+                }
+
+                loading={
+                  startingRun
+                }
+              />
+            )}
+
+            <Pressable
+              style={styles.historyButton}
+              onPress={
+                handleRunHistory
+              }
+            >
+              <View>
+                <Text
+                  style={
+                    styles.historyTitle
+                  }
+                >
+                  RUN HISTORY
+                </Text>
+
+                <Text
+                  style={
+                    styles.historySubtitle
+                  }
+                >
+                  VIEW YOUR PREVIOUS RUNS
+                </Text>
+              </View>
+
+              <Text
+                style={
+                  styles.historyArrow
+                }
+              >
+                →
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* ====================================
+              DAILY TODO
+              ==================================== */}
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              DAILY TODO
+            </Text>
+
+            <TodoCard
+              profileId={profileId}
+            />
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
 
   /*
-   * ======================================
-   * CENTER STATES
-   * ======================================
-   */
+  * ========================================
+  * STYLES
+  * ========================================
+  */
 
-  center: {
-    flex: 1,
-    backgroundColor:
-      colors.background,
+  const styles = StyleSheet.create({
+    /*
+    * ======================================
+    * MAIN
+    * ======================================
+    */
 
-    alignItems: 'center',
-    justifyContent: 'center',
+    container: {
+      flex: 1,
+      backgroundColor:
+        colors.background,
+    },
 
-    paddingHorizontal: 24,
-  },
+    content: {
+      paddingTop: 60,
+      paddingHorizontal: 18,
 
-  loadingProfileText: {
-    color:
-      colors.textSecondary,
+      /*
+      * Extra space at the bottom so the
+      * final Todo content can comfortably
+      * scroll above the tab bar.
+      */
+      paddingBottom: 100,
+    },
 
-    fontFamily:
-      'VT323',
+    /*
+    * ======================================
+    * CENTER STATES
+    * ======================================
+    */
 
-    fontSize: 18,
+    center: {
+      flex: 1,
+      backgroundColor:
+        colors.background,
 
-    marginTop: 10,
-  },
+      alignItems: 'center',
+      justifyContent: 'center',
 
-  emptyTitle: {
-    color:
-      colors.text,
+      paddingHorizontal: 24,
+    },
 
-    fontFamily:
-      'PressStart2P',
+    loadingProfileText: {
+      color:
+        colors.textSecondary,
 
-    fontSize: 14,
+      fontFamily:
+        'VT323',
 
-    textAlign: 'center',
-  },
+      fontSize: 18,
 
-  emptyText: {
-    color:
-      colors.textSecondary,
+      marginTop: 10,
+    },
 
-    fontFamily:
-      'VT323',
+    emptyTitle: {
+      color:
+        colors.text,
 
-    fontSize: 18,
+      fontFamily:
+        'PressStart2P',
 
-    textAlign: 'center',
+      fontSize: 14,
 
-    marginTop: 12,
+      textAlign: 'center',
+    },
 
-    lineHeight: 23,
-  },
+    emptyText: {
+      color:
+        colors.textSecondary,
 
-  /*
-   * ======================================
-   * HEADER
-   * ======================================
-   */
+      fontFamily:
+        'VT323',
 
-  title: {
-    color:
-      colors.text,
+      fontSize: 18,
 
-    fontFamily:
-      'PressStart2P',
+      textAlign: 'center',
 
-    fontSize: 24,
+      marginTop: 12,
 
-    textAlign: 'center',
-  },
+      lineHeight: 23,
+    },
 
-  subtitle: {
-    color:
-      colors.textSecondary,
+    /*
+    * ======================================
+    * HEADER
+    * ======================================
+    */
 
-    fontFamily:
-      'PressStart2P',
+    title: {
+      color:
+        colors.text,
 
-    fontSize: 9,
+      fontFamily:
+        'PressStart2P',
 
-    letterSpacing: 2,
+      fontSize: 24,
 
-    textAlign: 'center',
+      textAlign: 'center',
+    },
 
-    marginTop: 12,
+    subtitle: {
+      color:
+        colors.textSecondary,
 
-    marginBottom: 28,
-  },
+      fontFamily:
+        'PressStart2P',
 
-  /*
-   * ======================================
-   * SECTIONS
-   * ======================================
-   */
+      fontSize: 9,
 
-  section: {
-    marginTop: 28,
-  },
+      letterSpacing: 2,
 
-  sectionTitle: {
-    color:
-      colors.text,
+      textAlign: 'center',
 
-    fontFamily:
-      'PressStart2P',
+      marginTop: 12,
 
-    fontSize: 14,
+      marginBottom: 28,
+    },
 
-    marginBottom: 12,
-  },
+    /*
+    * ======================================
+    * SECTIONS
+    * ======================================
+    */
 
-  /*
-   * ======================================
-   * RUNNING LOADING
-   * ======================================
-   */
+    section: {
+      marginTop: 28,
+    },
 
-  loadingCard: {
-    minHeight: 110,
+    sectionTitle: {
+      color:
+        colors.text,
 
-    backgroundColor:
-      '#181818',
+      fontFamily:
+        'PressStart2P',
 
-    borderRadius: 18,
+      fontSize: 14,
 
-    alignItems: 'center',
+      marginBottom: 12,
+    },
 
-    justifyContent:
-      'center',
-  },
+    /*
+    * ======================================
+    * RUNNING LOADING
+    * ======================================
+    */
 
-  loadingText: {
-    color:
-      colors.textSecondary,
+    loadingCard: {
+      minHeight: 110,
 
-    fontFamily:
-      'VT323',
+      backgroundColor:
+        '#181818',
 
-    fontSize: 17,
+      borderRadius: 18,
 
-    marginTop: 8,
-  },
+      alignItems: 'center',
 
-  /*
-   * ======================================
-   * RUN HISTORY
-   * ======================================
-   */
+      justifyContent:
+        'center',
+    },
 
-  historyButton: {
-    marginTop: 12,
+    loadingText: {
+      color:
+        colors.textSecondary,
 
-    minHeight: 76,
+      fontFamily:
+        'VT323',
 
-    paddingHorizontal: 18,
+      fontSize: 17,
 
-    paddingVertical: 15,
+      marginTop: 8,
+    },
 
-    borderRadius: 17,
+    /*
+    * ======================================
+    * RUN HISTORY
+    * ======================================
+    */
 
-    backgroundColor:
-      '#181818',
+    historyButton: {
+      marginTop: 12,
 
-    borderWidth: 1,
+      minHeight: 76,
 
-    borderColor:
-      '#292929',
+      paddingHorizontal: 18,
 
-    flexDirection: 'row',
+      paddingVertical: 15,
 
-    alignItems: 'center',
+      borderRadius: 17,
 
-    justifyContent:
-      'space-between',
-  },
+      backgroundColor:
+        '#181818',
 
-  historyTitle: {
-    color:
-      colors.text,
+      borderWidth: 1,
 
-    fontFamily:
-      'PressStart2P',
+      borderColor:
+        '#292929',
 
-    fontSize: 11,
-  },
+      flexDirection: 'row',
 
-  historySubtitle: {
-    color:
-      colors.textSecondary,
+      alignItems: 'center',
 
-    fontFamily:
-      'VT323',
+      justifyContent:
+        'space-between',
+    },
 
-    fontSize: 16,
+    historyTitle: {
+      color:
+        colors.text,
 
-    marginTop: 6,
-  },
+      fontFamily:
+        'PressStart2P',
 
-  historyArrow: {
-    color:
-      colors.primary,
+      fontSize: 11,
+    },
 
-    fontFamily:
-      'VT323',
+    historySubtitle: {
+      color:
+        colors.textSecondary,
 
-    fontSize: 32,
-  },
-});
+      fontFamily:
+        'VT323',
+
+      fontSize: 16,
+
+      marginTop: 6,
+    },
+
+    historyArrow: {
+      color:
+        colors.primary,
+
+      fontFamily:
+        'VT323',
+
+      fontSize: 32,
+    },
+  });

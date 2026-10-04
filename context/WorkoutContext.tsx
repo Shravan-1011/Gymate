@@ -18,15 +18,13 @@ import {
   removeWorkoutExercise,
   addWorkoutSet,
   updateWorkoutSet,
+  deleteWorkoutSet,
   completeWorkout,
   getWorkoutHistory,
   getActiveWorkout,
   getPreviousWorkout as getPreviousWorkoutFromDatabase,
   getWorkoutById as getWorkoutByIdFromDatabase,
 
-  /*
-   * CUSTOM EXERCISE FUNCTIONS
-   */
   getCustomExercises,
   createCustomExercise,
   deleteCustomExercise,
@@ -41,33 +39,13 @@ import { useProfile } from './ProfileContext';
  */
 
 type WorkoutContextType = {
-  /*
-   * Active workout.
-   */
-
   workout: WorkoutSession | null;
-
-  /*
-   * Completed workout history.
-   */
 
   workoutHistory: WorkoutSession[];
 
-  /*
-   * Custom exercises loaded from SQLite.
-   */
-
   customExercises: Exercise[];
 
-  /*
-   * Loading state.
-   */
-
   isLoading: boolean;
-
-  /*
-   * Workout operations.
-   */
 
   startWorkout: (
     splitId: string,
@@ -95,9 +73,10 @@ type WorkoutContextType = {
     updates: Partial<WorkoutSet>
   ) => Promise<void>;
 
-  /*
-   * Custom exercise operations.
-   */
+  deleteSet: (
+    exerciseId: string,
+    setId: string
+  ) => Promise<void>;
 
   addCustomExercise: (
     exercise: Exercise
@@ -107,10 +86,6 @@ type WorkoutContextType = {
     exerciseId: string
   ) => Promise<void>;
 
-  /*
-   * Database queries.
-   */
-
   getPreviousWorkout: (
     splitId: string,
     excludeWorkoutId?: string
@@ -119,10 +94,6 @@ type WorkoutContextType = {
   getWorkoutById: (
     workoutId: string
   ) => Promise<WorkoutSession | null>;
-
-  /*
-   * Refresh everything.
-   */
 
   refreshWorkoutData: () => Promise<void>;
 };
@@ -149,12 +120,6 @@ export function WorkoutProvider({
 }: {
   children: ReactNode;
 }) {
-  /*
-   * ======================================
-   * PROFILE
-   * ======================================
-   */
-
   const { profile } =
     useProfile();
 
@@ -176,25 +141,6 @@ export function WorkoutProvider({
     []
   );
 
-  /*
-   * ======================================
-   * CUSTOM EXERCISES
-   * ======================================
-   *
-   * IMPORTANT:
-   *
-   * This state is ONLY the UI copy of the
-   * SQLite data.
-   *
-   * The actual permanent data lives in:
-   *
-   * SQLite
-   *   ↓
-   * custom_exercises
-   *
-   * This state gets reloaded from SQLite.
-   */
-
   const [
     customExercises,
     setCustomExercises,
@@ -215,31 +161,12 @@ export function WorkoutProvider({
         setIsLoading(true);
 
         try {
-          /*
-           * No logged-in profile.
-           *
-           * Clear everything.
-           */
-
           if (!profile) {
             setWorkout(null);
-
             setWorkoutHistory([]);
-
             setCustomExercises([]);
-
             return;
           }
-
-          /*
-           * Load:
-           *
-           * 1. Active workout
-           * 2. Workout history
-           * 3. Custom exercises
-           *
-           * All from SQLite.
-           */
 
           const [
             activeWorkout,
@@ -259,10 +186,6 @@ export function WorkoutProvider({
             ),
           ]);
 
-          /*
-           * Update React state.
-           */
-
           setWorkout(
             activeWorkout
           );
@@ -280,14 +203,8 @@ export function WorkoutProvider({
             error
           );
 
-          /*
-           * Prevent stale data.
-           */
-
           setWorkout(null);
-
           setWorkoutHistory([]);
-
           setCustomExercises([]);
         } finally {
           setIsLoading(false);
@@ -305,17 +222,10 @@ export function WorkoutProvider({
 
   const refreshWorkoutData =
     async (): Promise<void> => {
-      /*
-       * No profile.
-       */
-
       if (!profile) {
         setWorkout(null);
-
         setWorkoutHistory([]);
-
         setCustomExercises([]);
-
         return;
       }
 
@@ -374,9 +284,18 @@ export function WorkoutProvider({
         );
       }
 
-      /*
-       * SQLite creates the workout.
-       */
+      const existingWorkout =
+        await getActiveWorkout(
+          profile.id
+        );
+
+      if (existingWorkout) {
+        setWorkout(
+          existingWorkout
+        );
+
+        return;
+      }
 
       const newWorkout =
         await createWorkout(
@@ -384,10 +303,6 @@ export function WorkoutProvider({
           splitId,
           name
         );
-
-      /*
-       * Update UI.
-       */
 
       setWorkout(
         newWorkout
@@ -412,10 +327,6 @@ export function WorkoutProvider({
         return;
       }
 
-      /*
-       * Complete inside SQLite.
-       */
-
       const completedWorkout =
         await completeWorkout(
           profile.id,
@@ -424,19 +335,10 @@ export function WorkoutProvider({
 
       if (!completedWorkout) {
         await refreshWorkoutData();
-
         return;
       }
 
-      /*
-       * No active workout anymore.
-       */
-
       setWorkout(null);
-
-      /*
-       * Add to history.
-       */
 
       setWorkoutHistory(
         (currentHistory) => {
@@ -461,7 +363,7 @@ export function WorkoutProvider({
 
   /*
    * ========================================
-   * ADD EXERCISE TO WORKOUT
+   * ADD EXERCISE
    * ========================================
    */
 
@@ -481,19 +383,11 @@ export function WorkoutProvider({
         );
       }
 
-      /*
-       * Save to SQLite.
-       */
-
       await addWorkoutExercise(
         profile.id,
         workout.id,
         exercise
       );
-
-      /*
-       * Reload from SQLite.
-       */
 
       const updatedWorkout =
         await getActiveWorkout(
@@ -507,7 +401,7 @@ export function WorkoutProvider({
 
   /*
    * ========================================
-   * REMOVE EXERCISE FROM WORKOUT
+   * REMOVE EXERCISE
    * ========================================
    */
 
@@ -607,16 +501,6 @@ export function WorkoutProvider({
         );
       }
 
-      /*
-       * Kept because the UI passes it.
-       *
-       * Repository only needs:
-       *
-       * profileId
-       * workoutId
-       * setId
-       */
-
       void exerciseId;
 
       await updateWorkoutSet(
@@ -638,22 +522,57 @@ export function WorkoutProvider({
 
   /*
    * ========================================
+   * DELETE SET
+   * ========================================
+   */
+
+  const deleteSet =
+    async (
+      exerciseId: string,
+      setId: string
+    ): Promise<void> => {
+      if (!profile) {
+        throw new Error(
+          'NOT_AUTHENTICATED'
+        );
+      }
+
+      if (!workout) {
+        throw new Error(
+          'NO_ACTIVE_WORKOUT'
+        );
+      }
+
+      /*
+       * Delete from SQLite.
+       */
+
+      await deleteWorkoutSet(
+        profile.id,
+        workout.id,
+        exerciseId,
+        setId
+      );
+
+      /*
+       * Reload the complete active
+       * workout from SQLite.
+       */
+
+      const updatedWorkout =
+        await getActiveWorkout(
+          profile.id
+        );
+
+      setWorkout(
+        updatedWorkout
+      );
+    };
+
+  /*
+   * ========================================
    * ADD CUSTOM EXERCISE
    * ========================================
-   *
-   * THIS IS NOW SQLITE.
-   *
-   * Before:
-   *
-   * setCustomExercises(...)
-   *
-   * Now:
-   *
-   * SQLite
-   *   ↓
-   * custom_exercises
-   *   ↓
-   * React state
    */
 
   const addCustomExercise =
@@ -666,10 +585,6 @@ export function WorkoutProvider({
         );
       }
 
-      /*
-       * Save permanently to SQLite.
-       */
-
       await createCustomExercise(
         profile.id,
         {
@@ -678,19 +593,10 @@ export function WorkoutProvider({
         }
       );
 
-      /*
-       * Reload custom exercises
-       * from SQLite.
-       */
-
       const updatedExercises =
         await getCustomExercises(
           profile.id
         );
-
-      /*
-       * Update UI.
-       */
 
       setCustomExercises(
         updatedExercises
@@ -701,8 +607,6 @@ export function WorkoutProvider({
    * ========================================
    * REMOVE CUSTOM EXERCISE
    * ========================================
-   *
-   * THIS ALSO USES SQLITE NOW.
    */
 
   const removeCustomExercise =
@@ -715,27 +619,15 @@ export function WorkoutProvider({
         );
       }
 
-      /*
-       * Delete from SQLite.
-       */
-
       await deleteCustomExercise(
         profile.id,
         exerciseId
       );
 
-      /*
-       * Reload from SQLite.
-       */
-
       const updatedExercises =
         await getCustomExercises(
           profile.id
         );
-
-      /*
-       * Update UI.
-       */
 
       setCustomExercises(
         updatedExercises
@@ -793,69 +685,26 @@ export function WorkoutProvider({
   return (
     <WorkoutContext.Provider
       value={{
-        /*
-         * Workout
-         */
-
         workout,
-
-        /*
-         * History
-         */
-
         workoutHistory,
-
-        /*
-         * Custom exercises
-         *
-         * Loaded from SQLite.
-         */
-
         customExercises,
-
-        /*
-         * Loading
-         */
-
         isLoading,
 
-        /*
-         * Workout operations
-         */
-
         startWorkout,
-
         finishWorkout,
 
         addExercise,
-
         removeExercise,
 
         addSet,
-
         updateSet,
-
-        /*
-         * Custom exercise operations
-         *
-         * These now talk to SQLite.
-         */
+        deleteSet,
 
         addCustomExercise,
-
         removeCustomExercise,
 
-        /*
-         * Queries
-         */
-
         getPreviousWorkout,
-
         getWorkoutById,
-
-        /*
-         * Refresh
-         */
 
         refreshWorkoutData,
       }}

@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import {
+  useEffect,
+  useState,
+} from 'react';
 
 import {
   Pressable,
@@ -14,8 +17,20 @@ import {
 } from 'expo-router';
 
 import { workoutSplits } from '../../data/workoutSplits';
-import { colors, spacing } from '../../constants/theme';
-import { useWorkout } from '../../context/WorkoutContext';
+import {
+  colors,
+  spacing,
+} from '../../constants/theme';
+
+import {
+  useWorkout,
+} from '../../context/WorkoutContext';
+
+/*
+ * ========================================
+ * SCREEN
+ * ========================================
+ */
 
 export default function WorkoutScreen() {
   const {
@@ -23,67 +38,132 @@ export default function WorkoutScreen() {
     startWorkout,
   } = useWorkout();
 
-  const [elapsedSeconds, setElapsedSeconds] =
-    useState(0);
+  /*
+   * ======================================
+   * STATE
+   * ======================================
+   */
+
+  const [
+    elapsedSeconds,
+    setElapsedSeconds,
+  ] = useState(0);
+
+  const [
+    isStarting,
+    setIsStarting,
+  ] = useState(false);
 
   /*
-   * ========================================
+   * ======================================
    * ROUTE PARAMETER
-   * ========================================
+   * ======================================
    */
 
-  const params = useLocalSearchParams<{
-    splitId?: string | string[];
-  }>();
+  const params =
+    useLocalSearchParams<{
+      splitId?:
+        | string
+        | string[];
+    }>();
 
-  const splitId = Array.isArray(params.splitId)
-    ? params.splitId[0]
-    : params.splitId;
+  const splitId =
+    Array.isArray(params.splitId)
+      ? params.splitId[0]
+      : params.splitId;
 
   /*
-   * ========================================
+   * ======================================
    * FIND SELECTED SPLIT
-   * ========================================
+   * ======================================
    */
 
-  const selectedSplit = workoutSplits.find(
-    (split) => split.id === splitId
-  );
+  const selectedSplit =
+    workoutSplits.find(
+      (split) =>
+        split.id === splitId
+    );
 
   /*
-   * ========================================
-   * WORKOUT TIMER
-   * ========================================
+   * ======================================
+   * ACTIVE WORKOUT
+   * ======================================
    *
-   * Timer only runs while the workout is active.
+   * The setup screen only considers the
+   * workout active if it belongs to the
+   * selected split.
+   */
+
+  const isActiveWorkout =
+    Boolean(
+      workout &&
+        workout.status ===
+          'active' &&
+        workout.splitId ===
+          splitId
+    );
+
+  /*
+   * ======================================
+   * ANOTHER ACTIVE WORKOUT
+   * ======================================
+   *
+   * There can only be one active workout.
+   *
+   * If the user selects another split while
+   * a different workout is active, don't
+   * pretend this split is active.
+   */
+
+  const hasDifferentActiveWorkout =
+    Boolean(
+      workout &&
+        workout.status ===
+          'active' &&
+        workout.splitId !==
+          splitId
+    );
+
+  /*
+   * ======================================
+   * WORKOUT TIMER
+   * ======================================
+   *
+   * Timer is based on the persisted
+   * startedAt timestamp.
+   *
+   * This means leaving the screen does not
+   * reset the timer.
    */
 
   useEffect(() => {
     if (
-      !workout ||
-      workout.status !== 'active' ||
-      workout.splitId !== splitId
+      !isActiveWorkout ||
+      !workout?.startedAt
     ) {
       setElapsedSeconds(0);
       return;
     }
 
-    const startedAt = workout.startedAt;
+    const startTime =
+      new Date(
+        workout.startedAt
+      ).getTime();
 
-    if (!startedAt) {
+    if (
+      Number.isNaN(startTime)
+    ) {
       setElapsedSeconds(0);
       return;
     }
 
-    const startTime =
-      new Date(startedAt).getTime();
-
     const updateTimer = () => {
-      const now = Date.now();
-
-      const elapsed = Math.floor(
-        (now - startTime) / 1000
-      );
+      const elapsed =
+        Math.floor(
+          (Date.now() -
+            startTime) /
+            1000
+        );
 
       setElapsedSeconds(
         Math.max(0, elapsed)
@@ -92,56 +172,203 @@ export default function WorkoutScreen() {
 
     updateTimer();
 
-    const interval = setInterval(
-      updateTimer,
-      1000
-    );
+    const interval =
+      setInterval(
+        updateTimer,
+        1000
+      );
 
     return () => {
-      clearInterval(interval);
+      clearInterval(
+        interval
+      );
     };
   }, [
-    workout,
-    splitId,
+    isActiveWorkout,
+    workout?.startedAt,
   ]);
 
   /*
-   * ========================================
+   * ======================================
    * SAFE BACK
-   * ========================================
+   * ======================================
    */
 
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
-    } else {
-      router.replace('/');
+      return;
     }
+
+    router.replace('/');
   };
 
   /*
-   * ========================================
+   * ======================================
+   * START WORKOUT
+   * ======================================
+   */
+
+  const handleStartWorkout =
+    async () => {
+      /*
+       * Prevent double taps.
+       */
+
+      if (isStarting) {
+        return;
+      }
+
+      /*
+       * Split must exist.
+       */
+
+      if (!selectedSplit) {
+        return;
+      }
+
+      /*
+       * If another workout is already
+       * active, don't start this split.
+       */
+
+      if (
+        hasDifferentActiveWorkout
+      ) {
+        return;
+      }
+
+      /*
+       * If this split is already active,
+       * simply continue to it.
+       */
+
+      if (isActiveWorkout) {
+        router.push(
+          {
+            pathname:
+              '/workout/active',
+            params: {
+              splitId:
+                selectedSplit.id,
+              name:
+                selectedSplit.name,
+            },
+          }
+        );
+
+        return;
+      }
+
+      try {
+        setIsStarting(true);
+
+        /*
+         * IMPORTANT:
+         *
+         * Wait for SQLite + Context state
+         * to finish before navigating.
+         */
+
+        await startWorkout(
+          selectedSplit.id,
+          selectedSplit.name
+        );
+
+        /*
+         * Now the active workout exists.
+         */
+
+        router.push({
+          pathname:
+            '/workout/active',
+          params: {
+            splitId:
+              selectedSplit.id,
+            name:
+              selectedSplit.name,
+          },
+        });
+      } catch (error) {
+        console.error(
+          'Failed to start workout:',
+          error
+        );
+      } finally {
+        setIsStarting(false);
+      }
+    };
+
+  /*
+   * ======================================
+   * CONTINUE ACTIVE WORKOUT
+   * ======================================
+   */
+
+  const handleContinueWorkout =
+    () => {
+      if (
+        !workout ||
+        workout.status !==
+          'active'
+      ) {
+        return;
+      }
+
+      router.push({
+        pathname:
+          '/workout/active',
+        params: {
+          splitId:
+            workout.splitId,
+          name:
+            workout.name,
+        },
+      });
+    };
+
+  /*
+   * ======================================
    * SPLIT NOT FOUND
-   * ========================================
+   * ======================================
    */
 
   if (!selectedSplit) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>
+      <View
+        style={
+          styles.errorContainer
+        }
+      >
+        <Text
+          style={
+            styles.errorTitle
+          }
+        >
           WORKOUT NOT FOUND
         </Text>
 
-        <Text style={styles.errorSubtext}>
-          INVALID OR MISSING WORKOUT SPLIT
+        <Text
+          style={
+            styles.errorText
+          }
+        >
+          INVALID OR MISSING
+          WORKOUT SPLIT.
         </Text>
 
         <Pressable
-          style={styles.backButton}
+          style={
+            styles.backButton
+          }
           onPress={handleBack}
         >
-          <Text style={styles.backButtonText}>
-            GO HOME
+          <Text
+            style={
+              styles.backButtonText
+            }
+          >
+            GO BACK
           </Text>
         </Pressable>
       </View>
@@ -149,239 +376,391 @@ export default function WorkoutScreen() {
   }
 
   /*
-   * ========================================
-   * IS THIS WORKOUT ACTIVE?
-   * ========================================
-   */
-
-  const isActiveWorkout =
-    workout?.status === 'active' &&
-    workout.splitId === selectedSplit.id;
-
-  /*
-   * ========================================
-   * START WORKOUT
-   * ========================================
-   */
-
-  const handleStartWorkout = () => {
-    startWorkout(
-      selectedSplit.id,
-      selectedSplit.name
-    );
-
-    router.push({
-      pathname: '/workout/active',
-      params: {
-        splitId: selectedSplit.id,
-        name: selectedSplit.name,
-      },
-    });
-  };
-
-  /*
-   * ========================================
-   * ADD EXERCISE
-   * ========================================
-   *
-   * Exercises can ONLY be added once this
-   * workout has started.
-   */
-
-  const handleAddExercise = () => {
-    if (!isActiveWorkout) {
-      return;
-    }
-
-    router.push({
-      pathname:
-        '/workout/add-exercise/[splitId]',
-      params: {
-        splitId: selectedSplit.id,
-      },
-    });
-  };
-
-  /*
-   * ========================================
+   * ======================================
    * SCREEN
-   * ========================================
+   * ======================================
    */
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
+      contentContainerStyle={
+        styles.content
+      }
+      showsVerticalScrollIndicator={
+        false
+      }
     >
-      {/* HEADER */}
+      {/* ==================================
+          BACK
+          ================================== */}
 
       <Pressable
         style={styles.backRow}
         onPress={handleBack}
       >
-        <Text style={styles.backArrow}>
+        <Text
+          style={
+            styles.backArrow
+          }
+        >
           ‹
         </Text>
 
-        <Text style={styles.backText}>
+        <Text
+          style={
+            styles.backText
+          }
+        >
           BACK
         </Text>
       </Pressable>
 
-      <Text style={styles.title}>
+      {/* ==================================
+          HEADER
+          ================================== */}
+
+      <Text
+        style={styles.eyebrow}
+      >
+        WORKOUT SETUP
+      </Text>
+
+      <Text
+        style={styles.title}
+      >
         {selectedSplit.name}
       </Text>
 
-      <Text style={styles.subtitle}>
-        {selectedSplit.shortDescription}
+      <Text
+        style={styles.subtitle}
+      >
+        {
+          selectedSplit.shortDescription
+        }
       </Text>
 
-      {/* TIMER */}
+      {/* ==================================
+          TARGET MUSCLES
+          ================================== */}
 
-      <View style={styles.timerCard}>
-        <Text style={styles.timerLabel}>
-          WORKOUT TIME
+      <View
+        style={styles.targetCard}
+      >
+        <Text
+          style={
+            styles.targetLabel
+          }
+        >
+          TARGET MUSCLES
         </Text>
 
-        <Text style={styles.timer}>
-          {formatTime(elapsedSeconds)}
+        <Text
+          style={
+            styles.targetText
+          }
+        >
+          {selectedSplit.targetMuscles
+            .map((muscle) =>
+              muscle
+                .replace(
+                  /-/g,
+                  ' '
+                )
+                .toUpperCase()
+            )
+            .join(' • ')}
         </Text>
       </View>
 
-      {/* EXERCISES */}
+      {/* ==================================
+          ACTIVE WORKOUT WARNING
+          ================================== */}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
-          YOUR EXERCISES
-        </Text>
-      </View>
+      {hasDifferentActiveWorkout && (
+        <View
+          style={
+            styles.warningCard
+          }
+        >
+          <Text
+            style={
+              styles.warningTitle
+            }
+          >
+            WORKOUT ALREADY ACTIVE
+          </Text>
 
-      {isActiveWorkout &&
-      workout.exercises.length > 0 ? (
-        <View style={styles.exerciseList}>
-          {workout.exercises.map(
-            (workoutExercise, index) => (
-              <View
-                key={
-                  workoutExercise.exercise.id
+          <Text
+            style={
+              styles.warningText
+            }
+          >
+            YOU ALREADY HAVE AN ACTIVE
+            WORKOUT:
+          </Text>
+
+          <Text
+            style={
+              styles.warningWorkout
+            }
+          >
+            {workout?.name ??
+              'WORKOUT'}
+          </Text>
+
+          <Pressable
+            style={({
+              pressed,
+            }) => [
+              styles.continueButton,
+              pressed &&
+                styles.buttonPressed,
+            ]}
+            onPress={
+              handleContinueWorkout
+            }
+          >
+            <Text
+              style={
+                styles.continueButtonText
+              }
+            >
+              CONTINUE ACTIVE WORKOUT
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* ==================================
+          ACTIVE SELECTED WORKOUT
+          ================================== */}
+
+      {isActiveWorkout && (
+        <>
+          <View
+            style={
+              styles.activeCard
+            }
+          >
+            <Text
+              style={
+                styles.activeLabel
+              }
+            >
+              WORKOUT IN PROGRESS
+            </Text>
+
+            <Text
+              style={
+                styles.activeTime
+              }
+            >
+              {formatTime(
+                elapsedSeconds
+              )}
+            </Text>
+
+            <Text
+              style={
+                styles.activeSubtext
+              }
+            >
+              {workout?.exercises.length ??
+                0}{' '}
+              {workout?.exercises.length ===
+              1
+                ? 'EXERCISE'
+                : 'EXERCISES'}{' '}
+              ADDED
+            </Text>
+          </View>
+
+          <Pressable
+            style={({
+              pressed,
+            }) => [
+              styles.primaryButton,
+              pressed &&
+                styles.buttonPressed,
+            ]}
+            onPress={
+              handleContinueWorkout
+            }
+          >
+            <Text
+              style={
+                styles.primaryButtonText
+              }
+            >
+              CONTINUE WORKOUT
+            </Text>
+          </Pressable>
+        </>
+      )}
+
+      {/* ==================================
+          READY TO START
+          ================================== */}
+
+      {!isActiveWorkout &&
+        !hasDifferentActiveWorkout && (
+          <>
+            <View
+              style={
+                styles.readyCard
+              }
+            >
+              <Text
+                style={
+                  styles.readyTitle
                 }
-                style={styles.exerciseCard}
+              >
+                READY?
+              </Text>
+
+              <Text
+                style={
+                  styles.readyText
+                }
+              >
+                YOUR WORKOUT WILL START
+                WHEN YOU PRESS THE BUTTON
+                BELOW.
+              </Text>
+
+              <Text
+                style={
+                  styles.readySubtext
+                }
+              >
+                YOU CAN ADD EXERCISES
+                AFTER STARTING.
+              </Text>
+            </View>
+
+            <Pressable
+              style={({
+                pressed,
+              }) => [
+                styles.primaryButton,
+                pressed &&
+                  styles.buttonPressed,
+                isStarting &&
+                  styles.disabledButton,
+              ]}
+              onPress={
+                handleStartWorkout
+              }
+              disabled={isStarting}
+            >
+              <Text
+                style={
+                  styles.primaryButtonText
+                }
+              >
+                {isStarting
+                  ? 'STARTING...'
+                  : 'START WORKOUT'}
+              </Text>
+            </Pressable>
+          </>
+        )}
+
+      {/* ==================================
+          EXERCISE PREVIEW
+          ================================== */}
+
+      <View
+        style={styles.previewSection}
+      >
+        <Text
+          style={
+            styles.sectionTitle
+          }
+        >
+          RECOMMENDED EXERCISES
+        </Text>
+
+        {selectedSplit.recommendedExerciseIds
+          .slice(0, 6)
+          .map(
+            (
+              exerciseId,
+              index
+            ) => (
+              <View
+                key={exerciseId}
+                style={
+                  styles.previewRow
+                }
               >
                 <Text
                   style={
-                    styles.exerciseNumber
+                    styles.previewNumber
                   }
                 >
-                  {String(index + 1).padStart(
+                  {String(
+                    index + 1
+                  ).padStart(
                     2,
                     '0'
                   )}
                 </Text>
 
-                <View
-                  style={styles.exerciseInfo}
-                >
-                  <Text
-                    style={styles.exerciseName}
-                  >
-                    {
-                      workoutExercise
-                        .exercise.name
-                    }
-                  </Text>
-
-                  <Text
-                    style={styles.exerciseMeta}
-                  >
-                    {workoutExercise.exercise.primaryMuscle.toUpperCase()}
-                    {' • '}
-                    {workoutExercise.exercise.equipment.toUpperCase()}
-                  </Text>
-                </View>
-
                 <Text
-                  style={styles.setCount}
+                  style={
+                    styles.previewText
+                  }
                 >
-                  {workoutExercise.sets.length}{' '}
-                  {workoutExercise.sets.length ===
-                  1
-                    ? 'SET'
-                    : 'SETS'}
+                  {formatExerciseId(
+                    exerciseId
+                  )}
                 </Text>
               </View>
             )
           )}
-        </View>
-      ) : (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>
-            NO EXERCISES YET
+
+        {selectedSplit
+          .recommendedExerciseIds
+          .length > 6 && (
+          <Text
+            style={
+              styles.moreText
+            }
+          >
+            +
+            {selectedSplit
+              .recommendedExerciseIds
+              .length - 6}{' '}
+            MORE AVAILABLE
           </Text>
+        )}
+      </View>
 
-          <Text style={styles.emptyText}>
-            {isActiveWorkout
-              ? 'ADD EXERCISES TO START BUILDING YOUR WORKOUT.'
-              : 'START YOUR WORKOUT THEN ADD EXERCISES.'}
-          </Text>
-        </View>
-      )}
+      {/* ==================================
+          FOOTER
+          ================================== */}
 
-      {/* ADD EXERCISE */}
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.addButton,
-          pressed &&
-            styles.buttonPressed,
-
-          !isActiveWorkout &&
-            styles.disabledButton,
-        ]}
-        onPress={handleAddExercise}
-        disabled={!isActiveWorkout}
+      <View
+        style={styles.footer}
       >
         <Text
-          style={[
-            styles.addButtonText,
-            !isActiveWorkout &&
-              styles.disabledButtonText,
-          ]}
+          style={
+            styles.footerText
+          }
         >
-          + ADD EXERCISE
+          BUILD YOUR WORKOUT.
         </Text>
-      </Pressable>
 
-      {/* START WORKOUT */}
-
-      {!isActiveWorkout && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.startButton,
-            pressed &&
-              styles.buttonPressed,
-          ]}
-          onPress={handleStartWorkout}
+        <Text
+          style={
+            styles.footerSubtext
+          }
         >
-          <Text
-            style={styles.startButtonText}
-          >
-            START WORKOUT
-          </Text>
-        </Pressable>
-      )}
-
-      {/* ACTIVE WORKOUT */}
-
-      {isActiveWorkout && (
-        <View style={styles.activeCard}>
-          <Text
-            style={styles.activeText}
-          >
-            WORKOUT IN PROGRESS
-          </Text>
-        </View>
-      )}
+          TRAIN. TRACK. IMPROVE.
+        </Text>
+      </View>
     </ScrollView>
   );
 }
@@ -392,14 +771,19 @@ export default function WorkoutScreen() {
  * ========================================
  */
 
-function formatTime(totalSeconds: number) {
-  const hours = Math.floor(
-    totalSeconds / 3600
-  );
+function formatTime(
+  totalSeconds: number
+): string {
+  const hours =
+    Math.floor(
+      totalSeconds / 3600
+    );
 
-  const minutes = Math.floor(
-    (totalSeconds % 3600) / 60
-  );
+  const minutes =
+    Math.floor(
+      (totalSeconds % 3600) /
+        60
+    );
 
   const seconds =
     totalSeconds % 60;
@@ -410,9 +794,26 @@ function formatTime(totalSeconds: number) {
     seconds,
   ]
     .map((value) =>
-      String(value).padStart(2, '0')
+      String(value).padStart(
+        2,
+        '0'
+      )
     )
     .join(':');
+}
+
+/*
+ * ========================================
+ * FORMAT EXERCISE ID
+ * ========================================
+ */
+
+function formatExerciseId(
+  exerciseId: string
+): string {
+  return exerciseId
+    .replace(/-/g, ' ')
+    .toUpperCase();
 }
 
 /*
@@ -424,7 +825,8 @@ function formatTime(totalSeconds: number) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor:
+      colors.background,
   },
 
   content: {
@@ -432,271 +834,425 @@ const styles = StyleSheet.create({
     paddingBottom: 150,
   },
 
-  /* HEADER */
+  /*
+   * BACK
+   */
 
   backRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom:
+      spacing.xl,
   },
 
   backArrow: {
     fontFamily: 'VT323',
     fontSize: 36,
     color: colors.primary,
-    marginRight: spacing.sm,
+    marginRight:
+      spacing.sm,
   },
 
   backText: {
-    fontFamily: 'PressStart2P',
+    fontFamily:
+      'PressStart2P',
     fontSize: 11,
-    color: colors.textSecondary,
+    color:
+      colors.textSecondary,
+  },
+
+  /*
+   * HEADER
+   */
+
+  eyebrow: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 9,
+    color: colors.primary,
+    marginBottom:
+      spacing.md,
   },
 
   title: {
-    fontFamily: 'PressStart2P',
-    fontSize: 24,
+    fontFamily:
+      'PressStart2P',
+    fontSize: 22,
     color: colors.text,
-    marginBottom: spacing.md,
+    marginBottom:
+      spacing.sm,
+    lineHeight: 30,
   },
 
   subtitle: {
     fontFamily: 'VT323',
     fontSize: 22,
-    color: colors.textSecondary,
-    marginBottom: spacing.xl,
+    color:
+      colors.textSecondary,
+    marginBottom:
+      spacing.xl,
   },
 
-  /* TIMER */
+  /*
+   * TARGET
+   */
 
-  timerCard: {
-    backgroundColor: colors.surface,
-
+  targetCard: {
+    backgroundColor:
+      colors.surface,
     borderWidth: 2,
-    borderColor: colors.border,
-
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-
-  timerLabel: {
-    fontFamily: 'PressStart2P',
-    fontSize: 10,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-
-  timer: {
-    fontFamily: 'VT323',
-    fontSize: 48,
-    color: colors.primary,
-  },
-
-  /* SECTION */
-
-  sectionHeader: {
-    marginBottom: spacing.md,
-  },
-
-  sectionTitle: {
-    fontFamily: 'PressStart2P',
-    fontSize: 12,
-    color: colors.text,
-  },
-
-  /* EXERCISES */
-
-  exerciseList: {
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-
-  exerciseCard: {
-    minHeight: 70,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    backgroundColor: colors.surface,
-
-    borderWidth: 2,
-    borderColor: colors.border,
-
+    borderColor:
+      colors.border,
     padding: spacing.md,
+    marginBottom:
+      spacing.lg,
   },
 
-  exerciseNumber: {
-    fontFamily: 'VT323',
-    fontSize: 28,
-    color: colors.primary,
-    marginRight: spacing.md,
-  },
-
-  exerciseInfo: {
-    flex: 1,
-  },
-
-  exerciseName: {
-    fontFamily: 'PressStart2P',
-    fontSize: 10,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-
-  exerciseMeta: {
-    fontFamily: 'VT323',
-    fontSize: 18,
-    color: colors.textSecondary,
-  },
-
-  setCount: {
-    fontFamily: 'PressStart2P',
+  targetLabel: {
+    fontFamily:
+      'PressStart2P',
     fontSize: 8,
-    color: colors.textSecondary,
-    marginLeft: spacing.sm,
+    color:
+      colors.textSecondary,
+    marginBottom:
+      spacing.sm,
   },
 
-  /* EMPTY */
-
-  emptyCard: {
-    backgroundColor: colors.surface,
-
-    borderWidth: 2,
-    borderColor: colors.border,
-
-    padding: spacing.lg,
-
-    marginBottom: spacing.md,
-  },
-
-  emptyTitle: {
-    fontFamily: 'PressStart2P',
-    fontSize: 11,
-    color: colors.text,
-
-    marginBottom: spacing.md,
-  },
-
-  emptyText: {
+  targetText: {
     fontFamily: 'VT323',
-    fontSize: 20,
-    color: colors.textSecondary,
+    fontSize: 19,
+    color: colors.primary,
     lineHeight: 22,
   },
 
-  /* ADD */
+  /*
+   * WARNING
+   */
 
-  addButton: {
+  warningCard: {
+    backgroundColor:
+      colors.surface,
     borderWidth: 2,
-    borderColor: colors.primary,
-
-    paddingVertical: spacing.md,
-
-    alignItems: 'center',
-
-    backgroundColor: colors.background,
-
-    marginBottom: spacing.md,
+    borderColor:
+      colors.primary,
+    padding: spacing.md,
+    marginBottom:
+      spacing.lg,
   },
 
-  addButtonText: {
-    fontFamily: 'PressStart2P',
-    fontSize: 11,
-    color: colors.primary,
-  },
-
-  disabledButton: {
-    borderColor: colors.border,
-    opacity: 0.5,
-  },
-
-  disabledButtonText: {
-    color: colors.textSecondary,
-  },
-
-  /* START */
-
-  startButton: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-
-    paddingVertical: spacing.lg,
-
-    alignItems: 'center',
-
-    backgroundColor: colors.primary,
-  },
-
-  startButtonText: {
-    fontFamily: 'PressStart2P',
-    fontSize: 12,
-    color: colors.background,
-  },
-
-  /* ACTIVE */
-
-  activeCard: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-
-    paddingVertical: spacing.lg,
-
-    alignItems: 'center',
-
-    backgroundColor: colors.surface,
-  },
-
-  activeText: {
-    fontFamily: 'PressStart2P',
+  warningTitle: {
+    fontFamily:
+      'PressStart2P',
     fontSize: 10,
     color: colors.primary,
+    marginBottom:
+      spacing.md,
   },
 
-  /* PRESSED */
-
-  buttonPressed: {
-    opacity: 0.65,
-  },
-
-  /* ERROR */
-
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.background,
-
-    padding: spacing.lg,
-  },
-
-  errorText: {
-    fontFamily: 'PressStart2P',
-    fontSize: 14,
-    color: colors.primary,
-
-    marginBottom: spacing.md,
-  },
-
-  errorSubtext: {
+  warningText: {
     fontFamily: 'VT323',
-    fontSize: 18,
-    color: colors.textSecondary,
+    fontSize: 19,
+    color:
+      colors.textSecondary,
+    marginBottom:
+      spacing.xs,
+  },
 
-    marginBottom: spacing.xl,
+  warningWorkout: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 11,
+    color: colors.text,
+    marginBottom:
+      spacing.md,
+    lineHeight: 18,
+  },
+
+  continueButton: {
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent:
+      'center',
+    backgroundColor:
+      colors.surface,
+    borderWidth: 2,
+    borderColor:
+      colors.primary,
+    paddingHorizontal:
+      spacing.md,
+  },
+
+  continueButtonText: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 9,
+    color: colors.primary,
     textAlign: 'center',
   },
 
-  backButton: {
-    borderWidth: 2,
-    borderColor: colors.border,
+  /*
+   * ACTIVE
+   */
 
-    padding: spacing.md,
+  activeCard: {
+    backgroundColor:
+      colors.surface,
+    borderWidth: 2,
+    borderColor:
+      colors.primary,
+    padding: spacing.lg,
+    alignItems: 'center',
+    marginBottom:
+      spacing.md,
+  },
+
+  activeLabel: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 9,
+    color: colors.primary,
+    marginBottom:
+      spacing.md,
+  },
+
+  activeTime: {
+    fontFamily: 'VT323',
+    fontSize: 52,
+    color: colors.text,
+    lineHeight: 56,
+  },
+
+  activeSubtext: {
+    fontFamily: 'VT323',
+    fontSize: 19,
+    color:
+      colors.textSecondary,
+    marginTop:
+      spacing.sm,
+  },
+
+  /*
+   * READY
+   */
+
+  readyCard: {
+    backgroundColor:
+      colors.surface,
+    borderWidth: 2,
+    borderColor:
+      colors.border,
+    padding: spacing.lg,
+    marginBottom:
+      spacing.md,
+  },
+
+  readyTitle: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 12,
+    color: colors.primary,
+    marginBottom:
+      spacing.md,
+  },
+
+  readyText: {
+    fontFamily: 'VT323',
+    fontSize: 20,
+    color: colors.text,
+    lineHeight: 22,
+    marginBottom:
+      spacing.sm,
+  },
+
+  readySubtext: {
+    fontFamily: 'VT323',
+    fontSize: 18,
+    color:
+      colors.textSecondary,
+  },
+
+  /*
+   * BUTTON
+   */
+
+  primaryButton: {
+    minHeight: 64,
+    alignItems: 'center',
+    justifyContent:
+      'center',
+    backgroundColor:
+      colors.primary,
+    borderWidth: 2,
+    borderColor:
+      colors.primary,
+    paddingHorizontal:
+      spacing.lg,
+    marginBottom:
+      spacing.xl,
+  },
+
+  primaryButtonText: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 11,
+    color:
+      colors.background,
+    textAlign: 'center',
+  },
+
+  disabledButton: {
+    opacity: 0.5,
+  },
+
+  buttonPressed: {
+    opacity: 0.65,
+    transform: [
+      {
+        translateX: 2,
+      },
+    ],
+  },
+
+  /*
+   * RECOMMENDED PREVIEW
+   */
+
+  previewSection: {
+    marginTop:
+      spacing.md,
+    marginBottom:
+      spacing.xl,
+  },
+
+  sectionTitle: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 9,
+    color:
+      colors.textSecondary,
+    marginBottom:
+      spacing.md,
+  },
+
+  previewRow: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor:
+      colors.surface,
+    borderWidth: 1,
+    borderColor:
+      colors.border,
+    paddingHorizontal:
+      spacing.md,
+    marginBottom:
+      spacing.sm,
+  },
+
+  previewNumber: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 8,
+    color: colors.primary,
+    width: 38,
+  },
+
+  previewText: {
+    flex: 1,
+    fontFamily:
+      'VT323',
+    fontSize: 20,
+    color: colors.text,
+  },
+
+  moreText: {
+    fontFamily:
+      'VT323',
+    fontSize: 18,
+    color:
+      colors.textSecondary,
+    marginTop:
+      spacing.xs,
+  },
+
+  /*
+   * FOOTER
+   */
+
+  footer: {
+    alignItems: 'center',
+    paddingTop:
+      spacing.md,
+  },
+
+  footerText: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 9,
+    color: colors.primary,
+    marginBottom:
+      spacing.sm,
+  },
+
+  footerSubtext: {
+    fontFamily: 'VT323',
+    fontSize: 18,
+    color:
+      colors.textSecondary,
+  },
+
+  /*
+   * ERROR
+   */
+
+  errorContainer: {
+    flex: 1,
+    backgroundColor:
+      colors.background,
+    alignItems: 'center',
+    justifyContent:
+      'center',
+    padding: spacing.lg,
+  },
+
+  errorTitle: {
+    fontFamily:
+      'PressStart2P',
+    fontSize: 14,
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom:
+      spacing.md,
+  },
+
+  errorText: {
+    fontFamily: 'VT323',
+    fontSize: 20,
+    color:
+      colors.textSecondary,
+    textAlign: 'center',
+    marginBottom:
+      spacing.xl,
+  },
+
+  backButton: {
+    minHeight: 54,
+    paddingHorizontal:
+      spacing.xl,
+    alignItems: 'center',
+    justifyContent:
+      'center',
+    borderWidth: 2,
+    borderColor:
+      colors.primary,
+    backgroundColor:
+      colors.surface,
   },
 
   backButtonText: {
-    fontFamily: 'PressStart2P',
-    fontSize: 10,
-    color: colors.text,
+    fontFamily:
+      'PressStart2P',
+    fontSize: 9,
+    color: colors.primary,
   },
 });

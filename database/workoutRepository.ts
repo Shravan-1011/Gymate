@@ -487,6 +487,151 @@ export async function updateWorkoutSet(
 
 /*
  * ========================================
+ * DELETE WORKOUT SET
+ * ========================================
+ *
+ * Deletes a set from the current workout
+ * and automatically renumbers the remaining
+ * sets for that exercise.
+ */
+
+export async function deleteWorkoutSet(
+  profileId: string,
+  workoutId: string,
+  exerciseId: string,
+  setId: string
+): Promise<void> {
+  const db = await getDatabase();
+
+  /*
+   * Find the workout exercise belonging
+   * to the current profile/workout.
+   */
+
+  const workoutExercise =
+    await db.getFirstAsync<{
+      id: string;
+    }>(
+      `
+        SELECT we.id
+        FROM workout_exercises we
+
+        INNER JOIN workout_sessions ws
+          ON ws.id = we.workout_id
+
+        WHERE ws.id = ?
+          AND ws.profile_id = ?
+          AND we.exercise_id = ?
+
+        LIMIT 1;
+      `,
+      workoutId,
+      profileId,
+      exerciseId
+    );
+
+  if (!workoutExercise) {
+    throw new Error(
+      'WORKOUT_EXERCISE_NOT_FOUND'
+    );
+  }
+
+  /*
+   * Make sure the set actually belongs
+   * to this workout exercise.
+   */
+
+  const existingSet =
+    await db.getFirstAsync<{
+      id: string;
+    }>(
+      `
+        SELECT id
+        FROM workout_sets
+
+        WHERE id = ?
+          AND workout_exercise_id = ?
+
+        LIMIT 1;
+      `,
+      setId,
+      workoutExercise.id
+    );
+
+  if (!existingSet) {
+    throw new Error(
+      'WORKOUT_SET_NOT_FOUND'
+    );
+  }
+
+  /*
+   * Delete the set.
+   */
+
+  await db.runAsync(
+    `
+      DELETE FROM workout_sets
+
+      WHERE id = ?
+        AND workout_exercise_id = ?;
+    `,
+    setId,
+    workoutExercise.id
+  );
+
+  /*
+   * Renumber remaining sets:
+   *
+   * 1
+   * 2
+   * 3
+   * ...
+   *
+   * This prevents:
+   *
+   * SET 1
+   * SET 3
+   * SET 4
+   */
+
+  const remainingSets =
+    await db.getAllAsync<{
+      id: string;
+    }>(
+      `
+        SELECT id
+        FROM workout_sets
+
+        WHERE workout_exercise_id = ?
+
+        ORDER BY set_number ASC, rowid ASC;
+      `,
+      workoutExercise.id
+    );
+
+  for (
+    let index = 0;
+    index < remainingSets.length;
+    index++
+  ) {
+    await db.runAsync(
+      `
+        UPDATE workout_sets
+
+        SET set_number = ?
+
+        WHERE id = ?
+          AND workout_exercise_id = ?;
+      `,
+      index + 1,
+      remainingSets[index].id,
+      workoutExercise.id
+    );
+  }
+}
+
+/*
+ * ========================================
  * COMPLETE WORKOUT
  * ========================================
  */

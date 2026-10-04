@@ -7,6 +7,8 @@ import {
   updateRunningSession,
 } from '../database/activityRepository';
 
+export { getRunningSessionById };
+
 import type {
   RunLocationPoint,
   RunningSession,
