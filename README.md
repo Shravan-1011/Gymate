@@ -1,4 +1,4 @@
-# 🏋️ Gymate
+#  Gymate
 
 > **TRAIN. EAT. GROW.**
 
@@ -12,7 +12,7 @@ The goal of Gymate is to make consistent fitness more engaging by adding a progr
 
 ---
 
-## 📱 Download
+##  Download
 
 ### Demo APK
 
@@ -20,21 +20,21 @@ The recommended version for trying Gymate.
 
 The Demo build contains a prepared sample profile with existing workout, activity, Pokémon, progression, and achievement data so the implemented systems can be explored immediately.
 
-**[⬇️ Download Gymate Demo APK](https://github.com/Shravan-1011/Gymate/releases/tag/v1.0.0)**
+**[⬇️ Download Gymate Demo APK](https://github.com/Shravan-1011/Gymate/releases/tag/v1)**
 
 ### Developer APK
 
 A development build containing additional developer/testing functionality.
 
-**[🛠️ Download Gymate Dev APK](https://github.com/Shravan-1011/Gymate/releases/tag/v1.0.0)**
+**[ Download Gymate Dev APK](https://github.com/Shravan-1011/Gymate/releases/tag/v1-dev)**
 
 > Both APKs are distributed through the GitHub Release.
 
 ---
 
-# ✨ Features
+#  Features
 
-## 🏋️ Training
+##  Training
 
 Gymate provides a complete workout tracking system for recording and reviewing training sessions.
 
@@ -72,7 +72,7 @@ Gymate provides a complete workout tracking system for recording and reviewing t
 
 ---
 
-## 🍎 Diet & Nutrition
+##  Diet & Nutrition
 
 Gymate includes a daily nutrition tracking system designed around calories, protein, and water intake.
 
@@ -118,11 +118,11 @@ Daily records use snapshots so that changing a reusable template does not unexpe
 
 ---
 
-# 🏃 Activity
+#  Activity
 
 Gymate includes activity tracking for everyday movement and running.
 
-## 👣 Steps
+##  Steps
 
 - Track daily steps
 - Track progress toward the daily step goal
@@ -130,7 +130,7 @@ Gymate includes activity tracking for everyday movement and running.
 - View historical step graphs
 - Track step-based XP progression
 
-## 🏃 Running
+##  Running
 
 Gymate includes GPS-based running activity.
 
@@ -163,7 +163,7 @@ Saved runs provide information including:
 
 ---
 
-# ⚡ XP & Progression
+#  XP & Progression
 
 Gymate uses XP as a progression layer across the application.
 
@@ -183,19 +183,19 @@ The progression system connects different parts of the application instead of cr
 
 ---
 
-# 🎮 Pokémon System
+#  Pokémon System
 
 Pokémon is the gamification layer of Gymate.
 
 The system is designed to make fitness progression more engaging while keeping training, nutrition, and activity as the core of the application.
 
-## 🐣 Starter Pokémon
+##  Starter Pokémon
 
 Users begin their Pokémon journey with a starter Pokémon.
 
 The starter can then gain experience and progress through the Pokémon system.
 
-## 📦 Pokémon Collection
+##  Pokémon Collection
 
 Gymate supports collecting Pokémon through its Pokéball system.
 
@@ -211,13 +211,13 @@ Pokémon have properties such as:
 - Source
 - Evolution stage
 
-## 📖 Pokédex
+##  Pokédex
 
 Gymate maintains a permanent Pokédex registration system.
 
 Once a species has been registered, its Pokédex entry remains registered even if the Pokémon's current form changes through evolution.
 
-## 🖥️ Pokémon PC
+##  Pokémon PC
 
 The PC provides storage for collected Pokémon that are not currently part of the active team.
 
@@ -231,13 +231,13 @@ The PC includes:
 - Pokémon levels
 - Pokémon details
 
-## 📈 Pokémon XP & Levels
+##  Pokémon XP & Levels
 
 Pokémon can gain XP and increase their level.
 
 Their progression is independent from the Trainer's XP progression.
 
-## 🔄 Pokémon Evolution
+##  Pokémon Evolution
 
 Pokémon can evolve when their progression reaches the appropriate evolution requirements.
 
@@ -255,11 +255,11 @@ Evolution also registers the newly reached species in the Pokédex.
 
 ---
 
-# 🎯 Pokéball System
+#  Pokéball System
 
 Gymate includes different Pokéball types with different Pokémon acquisition rules.
 
-## 🃏 Jester Ball
+##  Jester Ball
 
 The Jester Ball is one of the Pokémon acquisition systems currently implemented.
 
@@ -282,7 +282,7 @@ Previously registered Pokémon are excluded from future Jester Ball rolls.
 
 ---
 
-# 🏅 Gym Badges & Achievements
+#  Gym Badges & Achievements
 
 Gymate contains an achievement-based Gym Badge system.
 
@@ -318,7 +318,7 @@ Achievements provide goals that can unlock Gym Badges and contribute to the over
 
 ---
 
-# 👤 Trainer Profile
+#  Trainer Profile
 
 The profile acts as the user's trainer card.
 
@@ -340,7 +340,7 @@ The profile also provides access to profile-related configuration.
 
 ---
 
-# 🎨 Design
+#  Design
 
 Gymate follows a **dark-mode-first 8-bit / pixel-art visual direction**.
 
@@ -359,9 +359,9 @@ The goal is to make Gymate feel like a **fitness application with a game layer**
 
 ---
 
-# 🖼️ Screenshots
+#  Screenshots
 
-## 🏠 Home
+##  Home
 
 The Home screen provides a quick overview of the user's daily progress and current Pokémon partner.
 
@@ -369,7 +369,7 @@ The Home screen provides a quick overview of the user's daily progress and curre
 
 ---
 
-## 🏋️ Training
+##  Training
 
 The Training section provides access to workouts, workout history, and training progress.
 
@@ -377,7 +377,7 @@ The Training section provides access to workouts, workout history, and training 
 
 ---
 
-## 📈 Training Progress
+##  Training Progress
 
 Review training statistics, workout volume, and progress over time.
 
@@ -385,7 +385,7 @@ Review training statistics, workout volume, and progress over time.
 
 ---
 
-## 🍎 Diet
+##  Diet
 
 Track daily calories, protein, water intake, food, and nutrition goals.
 
@@ -393,7 +393,7 @@ Track daily calories, protein, water intake, food, and nutrition goals.
 
 ---
 
-## 👣 Step Counter
+##  Step Counter
 
 Track daily steps and earn progression through activity.
 
@@ -401,7 +401,7 @@ Track daily steps and earn progression through activity.
 
 ---
 
-## 🏃 Running
+##  Running
 
 Track running activity using GPS and review completed runs.
 
@@ -409,7 +409,7 @@ Track running activity using GPS and review completed runs.
 
 ---
 
-## 🎮 Pokémon
+##  Pokémon
 
 The Pokémon section provides access to the user's Pokémon journey and collection.
 
@@ -417,7 +417,7 @@ The Pokémon section provides access to the user's Pokémon journey and collecti
 
 ---
 
-## 📦 Pokémon Collection
+##  Pokémon Collection
 
 Browse collected Pokémon and manage the collection.
 
@@ -425,7 +425,7 @@ Browse collected Pokémon and manage the collection.
 
 ---
 
-## 🔄 Pokémon Evolution
+##  Pokémon Evolution
 
 Pokémon evolution has its own dedicated visual sequence with animation and audio.
 
@@ -433,7 +433,7 @@ Pokémon evolution has its own dedicated visual sequence with animation and audi
 
 ---
 
-## 🏅 Achievements & Gym Badges
+##  Achievements & Gym Badges
 
 Complete achievements and collect Gym Badges.
 
@@ -441,7 +441,7 @@ Complete achievements and collect Gym Badges.
 
 ---
 
-## 👤 Trainer Profile
+##  Trainer Profile
 
 The Trainer Profile combines personal fitness information, Trainer XP, Pokédex progress, and Gym Badges.
 
@@ -449,7 +449,7 @@ The Trainer Profile combines personal fitness information, Trainer XP, Pokédex 
 
 ---
 
-# 🛠️ Tech Stack
+#  Tech Stack
 
 | Technology | Usage |
 |---|---|
@@ -467,7 +467,7 @@ The Trainer Profile combines personal fitness information, Trainer XP, Pokédex 
 
 ---
 
-# 🏗️ Project Structure
+#  Project Structure
 
 ```text
 Gymate/
