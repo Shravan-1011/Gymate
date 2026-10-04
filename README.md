@@ -30,6 +30,26 @@ A development build containing additional developer/testing functionality.
 
 > Both APKs are distributed through the GitHub Release.
 
+### 🧪 Sample Test Profile
+
+A prepared sample profile is available for exploring features that would otherwise require significant time to populate manually.
+
+The sample profile can be used to check things such as:
+
+-  Workout history and training progress
+-  Trainer XP and progression
+-  Pokémon collection
+-  Pokédex progress
+-  Pokémon evolution
+-  Gym Badges and achievements
+-  Step activity
+-  Running history and run details
+-  Nutrition and diet tracking
+
+**[📥 Download Sample Profile](docs/Gymate_test_2026-10-04.gymate)**
+
+> **How to use:** Install the Demo APK first, then follow the instructions included with the sample profile to load the provided test data.
+
 ---
 
 #  Features
