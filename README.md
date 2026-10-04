@@ -48,7 +48,7 @@ The sample profile can be used to check things such as:
 
 **[📥 Download Sample Profile](docs/Gymate_test_2026-10-04.gymate)**
 
-> **How to use:** Install the Demo APK first, then follow the instructions included with the sample profile to load the provided test data.
+> **How to use:** Install the Demo APK first, then when in the create profile section click on restore backup and then select the downloaded sample profile then enter the new password whatever you want and click restore backup and voila you are on the sample backup.
 
 ---
 
