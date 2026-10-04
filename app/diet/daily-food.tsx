@@ -34,6 +34,15 @@ import {
   getOrCreateTodayNutrition,
 } from '../../services/dietService';
 
+import {
+  FOOD_DATABASE,
+  type BuiltInFood,
+} from '../../data/foodDatabase';
+
+import {
+  calculateFoodNutrition,
+} from '../../utils/foodNutrition';
+
 import type {
   FoodUnit,
   DailyNutritionFood,
@@ -41,6 +50,7 @@ import type {
 
 
 const ACCENT = '#B8FF3D';
+
 
 const UNITS: FoodUnit[] = [
   'g',
@@ -55,8 +65,7 @@ const UNITS: FoodUnit[] = [
 
 
 /*
- * Accepts both "1.5" and "1,5" — some
- * keyboards/locales insert a comma.
+ * Accepts both "1.5" and "1,5".
  */
 function numberValue(
   value: string
@@ -88,6 +97,7 @@ export default function DailyFoodScreen() {
   const editing =
     Boolean(foodId);
 
+
   const {
     profile,
     isLoading: profileLoading,
@@ -95,6 +105,7 @@ export default function DailyFoodScreen() {
 
   const profileId =
     profile?.id ?? null;
+
 
   const [dailyNutritionId, setDailyNutritionId] =
     useState<string | null>(null);
@@ -105,6 +116,10 @@ export default function DailyFoodScreen() {
   const [saving, setSaving] =
     useState(false);
 
+
+  /*
+   * Food data
+   */
   const [foodName, setFoodName] =
     useState('');
 
@@ -114,6 +129,10 @@ export default function DailyFoodScreen() {
   const [unit, setUnit] =
     useState<FoodUnit>('g');
 
+
+  /*
+   * Manual/custom nutrition
+   */
   const [calories, setCalories] =
     useState('');
 
@@ -126,9 +145,32 @@ export default function DailyFoodScreen() {
   const [fat, setFat] =
     useState('');
 
+
+  /*
+   * Built-in food selection
+   */
+  const [selectedFood, setSelectedFood] =
+    useState<BuiltInFood | null>(null);
+
+  const [foodSearch, setFoodSearch] =
+    useState('');
+
+  const [showFoodPicker, setShowFoodPicker] =
+    useState(!editing);
+
+  const [customFood, setCustomFood] =
+    useState(editing);
+
+
   const quantityRef =
     useRef<TextInput>(null);
 
+
+  /*
+   * ========================================
+   * LOAD
+   * ========================================
+   */
 
   useEffect(() => {
     async function load() {
@@ -147,6 +189,14 @@ export default function DailyFoodScreen() {
           nutrition.id
         );
 
+
+        /*
+         * Editing an existing daily food.
+         *
+         * Existing food remains a snapshot.
+         * We do NOT try to convert it back
+         * into a built-in food automatically.
+         */
         if (foodId) {
           const foods =
             await getDailyNutritionFoods(
@@ -200,6 +250,12 @@ export default function DailyFoodScreen() {
   ]);
 
 
+  /*
+   * ========================================
+   * POPULATE EXISTING FOOD
+   * ========================================
+   */
+
   function populateFood(
     food: DailyNutritionFood
   ) {
@@ -230,8 +286,133 @@ export default function DailyFoodScreen() {
     setFat(
       String(food.fat)
     );
+
+    setSelectedFood(null);
+    setCustomFood(true);
+    setShowFoodPicker(false);
   }
 
+
+  /*
+   * ========================================
+   * FOOD SEARCH
+   * ========================================
+   */
+
+  const filteredFoods =
+    FOOD_DATABASE.filter(
+      (food) => {
+        const search =
+          foodSearch
+            .trim()
+            .toLowerCase();
+
+        if (!search) {
+          return true;
+        }
+
+        return food.name
+          .toLowerCase()
+          .includes(search);
+      }
+    );
+
+
+  /*
+   * ========================================
+   * CALCULATED NUTRITION
+   * ========================================
+   */
+
+  const parsedFoodQuantity =
+    numberValue(quantity);
+
+  const calculatedNutrition =
+    selectedFood && !customFood
+      ? calculateFoodNutrition(
+          selectedFood,
+          parsedFoodQuantity
+        )
+      : null;
+
+
+  /*
+   * ========================================
+   * SELECT BUILT-IN FOOD
+   * ========================================
+   */
+
+  function selectBuiltInFood(
+    food: BuiltInFood
+  ) {
+    setSelectedFood(food);
+
+    setFoodName(
+      food.name
+    );
+
+    setUnit(
+      food.unit
+    );
+
+    setQuantity('');
+
+    setCalories('');
+    setProtein('');
+    setCarbs('');
+    setFat('');
+
+    setFoodSearch('');
+    setShowFoodPicker(false);
+    setCustomFood(false);
+
+    setTimeout(() => {
+      quantityRef.current?.focus();
+    }, 100);
+  }
+
+
+  /*
+   * ========================================
+   * CHANGE FOOD
+   * ========================================
+   */
+
+  function changeBuiltInFood() {
+    setSelectedFood(null);
+    setFoodSearch('');
+    setShowFoodPicker(true);
+    setCustomFood(false);
+  }
+
+
+  /*
+   * ========================================
+   * CUSTOM FOOD
+   * ========================================
+   */
+
+  function switchToCustomFood() {
+    setSelectedFood(null);
+    setShowFoodPicker(false);
+    setCustomFood(true);
+
+    setFoodName('');
+    setQuantity('');
+    setUnit('g');
+
+    setCalories('');
+    setProtein('');
+    setCarbs('');
+    setFat('');
+  }
+
+
+  /*
+   * ========================================
+   * SAVE
+   * ========================================
+   */
 
   async function save() {
     if (
@@ -241,30 +422,70 @@ export default function DailyFoodScreen() {
       return;
     }
 
+
     const trimmedName =
       foodName.trim();
+
 
     const parsedQuantity =
       numberValue(quantity);
 
+
+    /*
+     * Built-in food:
+     *
+     * nutrition is calculated automatically.
+     *
+     * Custom food:
+     *
+     * nutrition comes from manual inputs.
+     */
+    const nutrition =
+      selectedFood && !customFood
+        ? calculateFoodNutrition(
+            selectedFood,
+            parsedQuantity
+          )
+        : {
+            calories:
+              numberValue(calories),
+
+            protein:
+              numberValue(protein),
+
+            carbs:
+              numberValue(carbs),
+
+            fat:
+              numberValue(fat),
+          };
+
+
     const parsedCalories =
-      numberValue(calories);
+      nutrition.calories;
 
     const parsedProtein =
-      numberValue(protein);
+      nutrition.protein;
 
     const parsedCarbs =
-      numberValue(carbs);
+      nutrition.carbs;
 
     const parsedFat =
-      numberValue(fat);
+      nutrition.fat;
 
+
+    /*
+     * ========================================
+     * VALIDATION
+     * ========================================
+     */
 
     if (!trimmedName) {
       Alert.alert(
         'Food',
         'Enter a food name.'
       );
+
       return;
     }
 
@@ -276,6 +497,7 @@ export default function DailyFoodScreen() {
         'Food',
         'Quantity must be greater than 0.'
       );
+
       return;
     }
 
@@ -290,12 +512,20 @@ export default function DailyFoodScreen() {
         'Food',
         'Nutrition values cannot be negative.'
       );
+
       return;
     }
 
 
+    /*
+     * ========================================
+     * SAVE TO EXISTING DATABASE
+     * ========================================
+     */
+
     try {
       setSaving(true);
+
 
       if (
         editing &&
@@ -305,13 +535,25 @@ export default function DailyFoodScreen() {
           profileId,
           foodId,
           {
-            foodName: trimmedName,
-            quantity: parsedQuantity,
+            foodName:
+              trimmedName,
+
+            quantity:
+              parsedQuantity,
+
             unit,
-            calories: parsedCalories,
-            protein: parsedProtein,
-            carbs: parsedCarbs,
-            fat: parsedFat,
+
+            calories:
+              parsedCalories,
+
+            protein:
+              parsedProtein,
+
+            carbs:
+              parsedCarbs,
+
+            fat:
+              parsedFat,
           }
         );
       } else {
@@ -319,17 +561,31 @@ export default function DailyFoodScreen() {
           profileId,
           dailyNutritionId,
           {
-            foodName: trimmedName,
-            quantity: parsedQuantity,
+            foodName:
+              trimmedName,
+
+            quantity:
+              parsedQuantity,
+
             unit,
-            calories: parsedCalories,
-            protein: parsedProtein,
-            carbs: parsedCarbs,
-            fat: parsedFat,
+
+            calories:
+              parsedCalories,
+
+            protein:
+              parsedProtein,
+
+            carbs:
+              parsedCarbs,
+
+            fat:
+              parsedFat,
+
             sortOrder: 999,
           }
         );
       }
+
 
       router.back();
     } catch (error) {
@@ -348,6 +604,12 @@ export default function DailyFoodScreen() {
   }
 
 
+  /*
+   * ========================================
+   * LOADING
+   * ========================================
+   */
+
   if (
     profileLoading ||
     loading
@@ -362,6 +624,12 @@ export default function DailyFoodScreen() {
     );
   }
 
+
+  /*
+   * ========================================
+   * UI
+   * ========================================
+   */
 
   return (
     <KeyboardAvoidingView
@@ -387,6 +655,10 @@ export default function DailyFoodScreen() {
         }
       >
 
+        {/* ========================================
+            HEADER
+        ======================================== */}
+
         <View style={styles.header}>
           <Pressable
             onPress={() =>
@@ -396,7 +668,8 @@ export default function DailyFoodScreen() {
             accessibilityLabel="Go back"
             style={({ pressed }) => [
               styles.backButton,
-              pressed && styles.pressed,
+              pressed &&
+                styles.pressed,
             ]}
           >
             <Text style={styles.backText}>
@@ -418,34 +691,268 @@ export default function DailyFoodScreen() {
         </View>
 
 
-        <Field
-          label="FOOD NAME"
-          value={foodName}
-          onChangeText={setFoodName}
-          placeholder="e.g. Chicken breast"
-          autoCapitalize="words"
-          returnKeyType="next"
-          onSubmitEditing={() =>
-            quantityRef.current?.focus()
-          }
-        />
+        {/* ========================================
+            BUILT-IN FOOD PICKER
+        ======================================== */}
 
+        {!editing &&
+        showFoodPicker ? (
+          <View
+            style={
+              styles.foodPicker
+            }
+          >
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              SELECT FOOD
+            </Text>
+
+
+            <View
+              style={
+                styles.searchWrapper
+              }
+            >
+              <TextInput
+                value={
+                  foodSearch
+                }
+                onChangeText={
+                  setFoodSearch
+                }
+                placeholder={
+                  'Search chicken, eggs, rice...'
+                }
+                placeholderTextColor={
+                  '#5F5F5F'
+                }
+                autoCapitalize="none"
+                style={
+                  styles.searchInput
+                }
+              />
+            </View>
+
+
+            <View
+              style={
+                styles.foodList
+              }
+            >
+              {filteredFoods.map(
+                (food) => (
+                  <Pressable
+                    key={food.id}
+                    onPress={() =>
+                      selectBuiltInFood(
+                        food
+                      )
+                    }
+                    style={({
+                      pressed,
+                    }) => [
+                      styles.foodOption,
+                      pressed &&
+                        styles.pressed,
+                    ]}
+                  >
+                    <View
+                      style={
+                        styles.foodOptionMain
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.foodOptionName
+                        }
+                      >
+                        {food.name}
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.foodOptionMeta
+                        }
+                      >
+                        {food.category}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={
+                        styles.foodOptionNutrition
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.foodOptionCalories
+                        }
+                      >
+                        {food.calories}{' '}
+                        kcal
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.foodOptionProtein
+                        }
+                      >
+                        {food.protein}g P
+                      </Text>
+                    </View>
+                  </Pressable>
+                )
+              )}
+            </View>
+
+
+            {filteredFoods.length ===
+            0 ? (
+              <View
+                style={
+                  styles.noFoods
+                }
+              >
+                <Text
+                  style={
+                    styles.noFoodsText
+                  }
+                >
+                  NO MATCHING FOOD
+                </Text>
+              </View>
+            ) : null}
+
+
+            <Pressable
+              onPress={
+                switchToCustomFood
+              }
+              style={({ pressed }) => [
+                styles.customFoodButton,
+                pressed &&
+                  styles.pressed,
+              ]}
+            >
+              <Text
+                style={
+                  styles.customFoodText
+                }
+              >
+                + CUSTOM FOOD
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+
+        {/* ========================================
+            SELECTED BUILT-IN FOOD
+        ======================================== */}
+
+        {!editing &&
+        selectedFood &&
+        !customFood ? (
+          <View
+            style={
+              styles.selectedFood
+            }
+          >
+            <View
+              style={
+                styles.selectedFoodMain
+              }
+            >
+              <Text
+                style={styles.label}
+              >
+                FOOD
+              </Text>
+
+              <Text
+                style={
+                  styles.selectedFoodName
+                }
+              >
+                {selectedFood.name}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={
+                changeBuiltInFood
+              }
+              style={({ pressed }) => [
+                styles.changeFoodButton,
+                pressed &&
+                  styles.pressed,
+              ]}
+            >
+              <Text
+                style={
+                  styles.changeFoodText
+                }
+              >
+                CHANGE
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+
+        {/* ========================================
+            CUSTOM FOOD NAME
+        ======================================== */}
+
+        {customFood ? (
+          <Field
+            label="FOOD NAME"
+            value={foodName}
+            onChangeText={
+              setFoodName
+            }
+            placeholder={
+              'e.g. Homemade chicken'
+            }
+            autoCapitalize="words"
+            returnKeyType="next"
+            onSubmitEditing={() =>
+              quantityRef.current?.focus()
+            }
+          />
+        ) : null}
+
+
+        {/* ========================================
+            QUANTITY
+        ======================================== */}
 
         <Field
           label="QUANTITY"
           value={quantity}
-          onChangeText={setQuantity}
+          onChangeText={
+            setQuantity
+          }
           placeholder="150"
           keyboardType="decimal-pad"
           inputRef={quantityRef}
         />
 
 
+        {/* ========================================
+            UNIT
+        ======================================== */}
+
         <Text style={styles.label}>
           UNIT
         </Text>
 
-        <View style={styles.unitGrid}>
+        <View
+          style={styles.unitGrid}
+        >
           {UNITS.map(
             (item) => {
               const selected =
@@ -461,10 +968,14 @@ export default function DailyFoodScreen() {
                   accessibilityState={{
                     selected,
                   }}
-                  style={({ pressed }) => [
+                  style={({
+                    pressed,
+                  }) => [
                     styles.unitButton,
+
                     selected &&
                       styles.unitButtonActive,
+
                     pressed &&
                       !selected &&
                       styles.pressed,
@@ -473,6 +984,7 @@ export default function DailyFoodScreen() {
                   <Text
                     style={[
                       styles.unitText,
+
                       selected &&
                         styles.unitTextActive,
                     ]}
@@ -486,65 +998,214 @@ export default function DailyFoodScreen() {
         </View>
 
 
-        <Text style={styles.sectionTitle}>
+        {/* ========================================
+            NUTRITION
+        ======================================== */}
+
+        <Text
+          style={
+            styles.sectionTitle
+          }
+        >
           NUTRITION
         </Text>
 
 
-        <View style={styles.nutritionRow}>
-          <Field
-            label="CALORIES"
-            value={calories}
-            onChangeText={setCalories}
-            placeholder="0"
-            keyboardType="decimal-pad"
-            suffix="kcal"
-            style={styles.half}
-          />
+        {selectedFood &&
+        !customFood ? (
+          <View
+            style={
+              styles.calculatedNutrition
+            }
+          >
+            <View
+              style={
+                styles.calculatedItem
+              }
+            >
+              <Text
+                style={
+                  styles.calculatedValue
+                }
+              >
+                {calculatedNutrition
+                  ?.calories ?? 0}
+              </Text>
 
-          <Field
-            label="PROTEIN"
-            value={protein}
-            onChangeText={setProtein}
-            placeholder="0"
-            keyboardType="decimal-pad"
-            suffix="g"
-            style={styles.half}
-          />
-        </View>
-
-
-        <View style={styles.nutritionRow}>
-          <Field
-            label="CARBS"
-            value={carbs}
-            onChangeText={setCarbs}
-            placeholder="0"
-            keyboardType="decimal-pad"
-            suffix="g"
-            style={styles.half}
-          />
-
-          <Field
-            label="FAT"
-            value={fat}
-            onChangeText={setFat}
-            placeholder="0"
-            keyboardType="decimal-pad"
-            suffix="g"
-            style={styles.half}
-          />
-        </View>
+              <Text
+                style={
+                  styles.calculatedLabel
+                }
+              >
+                KCAL
+              </Text>
+            </View>
 
 
-        <View style={styles.note}>
-          <Text style={styles.noteTitle}>
+            <View
+              style={
+                styles.calculatedItem
+              }
+            >
+              <Text
+                style={
+                  styles.calculatedValue
+                }
+              >
+                {calculatedNutrition
+                  ?.protein ?? 0}
+              </Text>
+
+              <Text
+                style={
+                  styles.calculatedLabel
+                }
+              >
+                PROTEIN
+              </Text>
+            </View>
+
+
+            <View
+              style={
+                styles.calculatedItem
+              }
+            >
+              <Text
+                style={
+                  styles.calculatedValue
+                }
+              >
+                {calculatedNutrition
+                  ?.carbs ?? 0}
+              </Text>
+
+              <Text
+                style={
+                  styles.calculatedLabel
+                }
+              >
+                CARBS
+              </Text>
+            </View>
+
+
+            <View
+              style={
+                styles.calculatedItem
+              }
+            >
+              <Text
+                style={
+                  styles.calculatedValue
+                }
+              >
+                {calculatedNutrition
+                  ?.fat ?? 0}
+              </Text>
+
+              <Text
+                style={
+                  styles.calculatedLabel
+                }
+              >
+                FAT
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <>
+            <View
+              style={
+                styles.nutritionRow
+              }
+            >
+              <Field
+                label="CALORIES"
+                value={calories}
+                onChangeText={
+                  setCalories
+                }
+                placeholder="0"
+                keyboardType="decimal-pad"
+                suffix="kcal"
+                style={
+                  styles.half
+                }
+              />
+
+              <Field
+                label="PROTEIN"
+                value={protein}
+                onChangeText={
+                  setProtein
+                }
+                placeholder="0"
+                keyboardType="decimal-pad"
+                suffix="g"
+                style={
+                  styles.half
+                }
+              />
+            </View>
+
+
+            <View
+              style={
+                styles.nutritionRow
+              }
+            >
+              <Field
+                label="CARBS"
+                value={carbs}
+                onChangeText={
+                  setCarbs
+                }
+                placeholder="0"
+                keyboardType="decimal-pad"
+                suffix="g"
+                style={
+                  styles.half
+                }
+              />
+
+              <Field
+                label="FAT"
+                value={fat}
+                onChangeText={
+                  setFat
+                }
+                placeholder="0"
+                keyboardType="decimal-pad"
+                suffix="g"
+                style={
+                  styles.half
+                }
+              />
+            </View>
+          </>
+        )}
+
+
+        {/* ========================================
+            SNAPSHOT NOTE
+        ======================================== */}
+
+        <View
+          style={styles.note}
+        >
+          <Text
+            style={styles.noteTitle}
+          >
             SNAPSHOT
           </Text>
 
-          <Text style={styles.noteText}>
-            These values belong to today&apos;s
-            food record. Editing them will not
+          <Text
+            style={styles.noteText}
+          >
+            These values belong to
+            today&apos;s food record.
+            Editing them will not
             change any diet template.
           </Text>
         </View>
@@ -552,15 +1213,23 @@ export default function DailyFoodScreen() {
       </ScrollView>
 
 
-      <View style={styles.bottomBar}>
+      {/* ========================================
+          SAVE BAR
+      ======================================== */}
+
+      <View
+        style={styles.bottomBar}
+      >
         <Pressable
           disabled={saving}
           onPress={save}
           accessibilityRole="button"
           style={({ pressed }) => [
             styles.saveButton,
+
             saving &&
               styles.saveButtonDisabled,
+
             pressed &&
               !saving &&
               styles.pressed,
@@ -571,7 +1240,11 @@ export default function DailyFoodScreen() {
               color="#090909"
             />
           ) : (
-            <Text style={styles.saveText}>
+            <Text
+              style={
+                styles.saveText
+              }
+            >
               {editing
                 ? 'SAVE CHANGES'
                 : 'ADD FOOD'}
@@ -583,6 +1256,12 @@ export default function DailyFoodScreen() {
   );
 }
 
+
+/*
+ * ========================================
+ * FIELD COMPONENT
+ * ========================================
+ */
 
 function Field({
   label,
@@ -613,9 +1292,13 @@ function Field({
     | 'sentences'
     | 'words'
     | 'characters';
-  returnKeyType?: 'next' | 'done';
+  returnKeyType?:
+    | 'next'
+    | 'done';
   onSubmitEditing?: () => void;
-  inputRef?: React.RefObject<TextInput | null>;
+  inputRef?: React.RefObject<
+    TextInput | null
+  >;
   style?: object;
 }) {
   return (
@@ -625,11 +1308,17 @@ function Field({
         style,
       ]}
     >
-      <Text style={styles.label}>
+      <Text
+        style={styles.label}
+      >
         {label}
       </Text>
 
-      <View style={styles.inputWrapper}>
+      <View
+        style={
+          styles.inputWrapper
+        }
+      >
         <TextInput
           ref={inputRef}
           value={value}
@@ -639,7 +1328,9 @@ function Field({
           placeholder={
             placeholder
           }
-          placeholderTextColor="#5F5F5F"
+          placeholderTextColor={
+            '#5F5F5F'
+          }
           keyboardType={
             keyboardType
           }
@@ -653,11 +1344,17 @@ function Field({
             onSubmitEditing
           }
           selectTextOnFocus
-          style={styles.input}
+          style={
+            styles.input
+          }
         />
 
         {suffix ? (
-          <Text style={styles.suffix}>
+          <Text
+            style={
+              styles.suffix
+            }
+          >
             {suffix}
           </Text>
         ) : null}
@@ -666,6 +1363,12 @@ function Field({
   );
 }
 
+
+/*
+ * ========================================
+ * STYLES
+ * ========================================
+ */
 
 const styles = StyleSheet.create({
   container: {
@@ -727,6 +1430,171 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  /*
+   * ========================================
+   * FOOD PICKER
+   * ========================================
+   */
+
+  foodPicker: {
+    marginBottom: 20,
+  },
+
+  searchWrapper: {
+    height: 48,
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+
+  searchInput: {
+    flex: 1,
+    color: '#F2F2F2',
+    paddingHorizontal: 13,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  foodList: {
+    gap: 7,
+  },
+
+  foodOption: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#151515',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+
+  foodOptionMain: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  foodOptionName: {
+    color: '#F2F2F2',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  foodOptionMeta: {
+    color: '#666',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginTop: 4,
+  },
+
+  foodOptionNutrition: {
+    alignItems: 'flex-end',
+  },
+
+  foodOptionCalories: {
+    color: ACCENT,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+
+  foodOptionProtein: {
+    color: '#777',
+    fontSize: 9,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+
+  noFoods: {
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 8,
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+
+  noFoodsText: {
+    color: '#666',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+
+  customFoodButton: {
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 8,
+    marginTop: 9,
+    backgroundColor: '#101010',
+  },
+
+  customFoodText: {
+    color: '#999',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+
+  /*
+   * ========================================
+   * SELECTED FOOD
+   * ========================================
+   */
+
+  selectedFood: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: ACCENT,
+    borderRadius: 8,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    marginBottom: 15,
+  },
+
+  selectedFoodMain: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  selectedFoodName: {
+    color: '#F2F2F2',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  changeFoodButton: {
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+
+  changeFoodText: {
+    color: ACCENT,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+
+  /*
+   * ========================================
+   * FIELDS
+   * ========================================
+   */
+
   field: {
     marginBottom: 15,
   },
@@ -769,6 +1637,12 @@ const styles = StyleSheet.create({
     paddingRight: 13,
   },
 
+  /*
+   * ========================================
+   * UNIT
+   * ========================================
+   */
+
   unitGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -802,6 +1676,12 @@ const styles = StyleSheet.create({
     color: '#090909',
   },
 
+  /*
+   * ========================================
+   * NUTRITION
+   * ========================================
+   */
+
   sectionTitle: {
     color: '#F2F2F2',
     fontSize: 13,
@@ -814,6 +1694,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+
+  calculatedNutrition: {
+    flexDirection: 'row',
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 8,
+    paddingVertical: 16,
+    marginBottom: 15,
+  },
+
+  calculatedItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+
+  calculatedValue: {
+    color: '#F2F2F2',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+
+  calculatedLabel: {
+    color: '#666',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    marginTop: 4,
+  },
+
+  /*
+   * ========================================
+   * SNAPSHOT
+   * ========================================
+   */
 
   note: {
     backgroundColor: '#101010',
@@ -837,6 +1752,12 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 5,
   },
+
+  /*
+   * ========================================
+   * BOTTOM BAR
+   * ========================================
+   */
 
   bottomBar: {
     position: 'absolute',

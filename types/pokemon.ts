@@ -111,10 +111,12 @@ export type PokemonSpecies = {
  */
 
 export const POKEBALL_TYPE = {
+   JESTER_BALL: 'jester_ball',
   POKE_BALL: 'poke_ball',
   GREAT_BALL: 'great_ball',
   ULTRA_BALL: 'ultra_ball',
   MASTER_BALL: 'master_ball',
+
 } as const;
 
 export type PokeballType =
@@ -127,6 +129,7 @@ export type PokeballType =
  */
 
 export type PokeballCatchRule =
+  | 'jester_ball'
   | 'basic_form'
   | 'short_final_form'
   | 'mid_evolution_form'
@@ -157,6 +160,7 @@ export type PokeballConfig = {
 
 export type PokemonSource =
   | 'starter'
+  | 'jester_ball'
   | 'poke_ball'
   | 'great_ball'
   | 'ultra_ball'

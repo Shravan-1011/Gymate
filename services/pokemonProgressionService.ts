@@ -12,6 +12,10 @@ import {
 } from '../database/pokedexRepository';
 
 import {
+  publishPokemonEvolution,
+} from './pokemonEvolutionEventService';
+
+import {
   getSpeciesById,
   getPokemonLevelForXP,
   getEvolutionLevelStage2,
@@ -63,6 +67,8 @@ export type PokemonLevelUpEvent = {
   previousLevel: number;
 
   newLevel: number;
+
+  previousSpeciesId: string;
 
   evolvedToSpeciesId?: string;
 
@@ -258,6 +264,9 @@ async function addXPToPokemon(
 
     newLevel,
 
+    previousSpeciesId:
+    pokemon.speciesId,
+
     evolvedToSpeciesId,
 
     shardsAwarded,
@@ -311,8 +320,14 @@ export async function distributeTeamXPShare(
     );
 
     if (event) {
-      events.push(event);
-    }
+  events.push(event);
+
+  if (event.evolvedToSpeciesId) {
+    publishPokemonEvolution(
+      event
+    );
+  }
+}
   }
 
   return events;

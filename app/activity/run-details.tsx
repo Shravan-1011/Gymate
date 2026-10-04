@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   },
 
   mapWrapper: {
-    height: 300,
+    height: 340,
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,

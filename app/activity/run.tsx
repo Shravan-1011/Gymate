@@ -664,16 +664,6 @@ export default function RunScreen() {
             }
             showMarkers
           />
-
-          <View
-            style={styles.pointBadge}
-          >
-            <Text
-              style={styles.pointText}
-            >
-              {run.route.length} GPS POINTS
-            </Text>
-          </View>
         </View>
 
 
@@ -954,27 +944,11 @@ const styles =
 
     mapContainer: {
       flex: 1,
-      minHeight: 180,
+      minHeight: 320,
       marginTop: 18,
       borderRadius: 12,
       overflow: 'hidden',
       position: 'relative',
-    },
-
-    pointBadge: {
-      position: 'absolute',
-      top: 10,
-      right: 10,
-      backgroundColor: '#101010',
-      borderRadius: 6,
-      paddingHorizontal: 8,
-      paddingVertical: 5,
-    },
-
-    pointText: {
-      color: '#b7ff3c',
-      fontSize: 9,
-      fontWeight: '900',
     },
 
   });

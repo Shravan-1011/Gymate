@@ -27,11 +27,16 @@ import {
 } from '../../constants/theme';
 
 import {
-  getProfileDisplayGymBadges,
+  getProfileGymBadgeStatus,
+  type ProfileGymBadgeStatus,
   type ProfileDisplayGymBadge,
 } from '../../services/pokemonAchievementService';
 
 import GymBadgesCard from '../../components/pokemon/GymBadgesCard';
+
+type BadgeTab =
+  | 'normal'
+  | 'gold';
 
 export default function GymBadgesScreen() {
 
@@ -50,6 +55,13 @@ export default function GymBadgesScreen() {
     isLoading,
     setIsLoading,
   ] = useState(true);
+
+  const [
+    activeTab,
+    setActiveTab,
+  ] = useState<BadgeTab>(
+    'normal'
+  );
 
   /*
    * ======================================
@@ -78,13 +90,44 @@ export default function GymBadgesScreen() {
 
         try {
 
+          /*
+           * Load EVERY badge variant.
+           *
+           * Unlike getProfileDisplayGymBadges(),
+           * this does not collapse Normal + Gold
+           * into a single family entry.
+           */
           const result =
-            await getProfileDisplayGymBadges(
+            await getProfileGymBadgeStatus(
               profile.id
             );
 
+          /*
+           * Convert the status result into the
+           * display shape expected by GymBadgesCard.
+           */
+          const displayBadges:
+            ProfileDisplayGymBadge[] =
+            result.map(
+              (
+                entry:
+                  ProfileGymBadgeStatus
+              ) => ({
+                badge:
+                  entry.badge,
+
+                earned:
+                  entry.earned,
+
+                displayVariant:
+                  entry.earned
+                    ? entry.badge.variant
+                    : 'locked',
+              })
+            );
+
           setBadges(
-            result
+            displayBadges
           );
 
         } catch (
@@ -130,25 +173,34 @@ export default function GymBadgesScreen() {
 
   /*
    * ======================================
+   * VISIBLE BADGES
+   * ======================================
+   *
+   * Only show the currently selected
+   * Normal or Gold variant.
+   */
+
+  const visibleBadges =
+    badges.filter(
+      (
+        badge
+      ) =>
+        badge.badge.variant ===
+        activeTab
+    );
+
+  /*
+   * ======================================
    * COUNTS
    * ======================================
    */
 
   const earnedCount =
-    badges.filter(
+    visibleBadges.filter(
       (
         badge
       ) =>
         badge.earned
-    ).length;
-
-  const goldCount =
-    badges.filter(
-      (
-        badge
-      ) =>
-        badge.displayVariant ===
-        'gold'
     ).length;
 
   /*
@@ -258,7 +310,9 @@ export default function GymBadgesScreen() {
                 styles.summaryValue
               }
             >
-              {earnedCount} / {badges.length}
+              {earnedCount} / {
+                visibleBadges.length
+              }
             </Text>
 
             <Text
@@ -266,10 +320,84 @@ export default function GymBadgesScreen() {
                 styles.summarySubtext
               }
             >
-              {goldCount > 0
-                ? `${goldCount} GOLD BADGE${goldCount === 1 ? '' : 'S'}`
-                : 'NO GOLD BADGES YET'}
+              {activeTab === 'gold'
+                ? 'GOLD BADGES'
+                : 'NORMAL BADGES'}
             </Text>
+
+          </View>
+
+          {/* ==================================
+              NORMAL / GOLD TABS
+              ================================== */}
+
+          <View
+            style={
+              styles.tabContainer
+            }
+          >
+
+            {/* NORMAL TAB */}
+
+            <Pressable
+              onPress={() =>
+                setActiveTab(
+                  'normal'
+                )
+              }
+              style={[
+                styles.tab,
+
+                activeTab ===
+                  'normal' &&
+                  styles.tabActive,
+              ]}
+            >
+
+              <Text
+                style={[
+                  styles.tabText,
+
+                  activeTab ===
+                    'normal' &&
+                    styles.tabTextActive,
+                ]}
+              >
+                NORMAL
+              </Text>
+
+            </Pressable>
+
+            {/* GOLD TAB */}
+
+            <Pressable
+              onPress={() =>
+                setActiveTab(
+                  'gold'
+                )
+              }
+              style={[
+                styles.tab,
+
+                activeTab ===
+                  'gold' &&
+                  styles.tabGoldActive,
+              ]}
+            >
+
+              <Text
+                style={[
+                  styles.tabText,
+
+                  activeTab ===
+                    'gold' &&
+                    styles.tabGoldTextActive,
+                ]}
+              >
+                GOLD
+              </Text>
+
+            </Pressable>
 
           </View>
 
@@ -277,7 +405,7 @@ export default function GymBadgesScreen() {
               BADGES
               ================================== */}
 
-          {badges.map(
+          {visibleBadges.map(
             (
               badge
             ) => (
@@ -319,7 +447,9 @@ const styles =
     },
 
     /*
+     * ======================================
      * HEADER
+     * ======================================
      */
 
     header: {
@@ -370,7 +500,9 @@ const styles =
     },
 
     /*
+     * ======================================
      * LOADING
+     * ======================================
      */
 
     loading: {
@@ -384,7 +516,9 @@ const styles =
     },
 
     /*
+     * ======================================
      * CONTENT
+     * ======================================
      */
 
     content: {
@@ -396,7 +530,9 @@ const styles =
     },
 
     /*
+     * ======================================
      * SUMMARY
+     * ======================================
      */
 
     summary: {
@@ -459,6 +595,79 @@ const styles =
 
       marginTop:
         spacing.xs,
+    },
+
+    /*
+     * ======================================
+     * NORMAL / GOLD TABS
+     * ======================================
+     */
+
+    tabContainer: {
+      flexDirection:
+        'row',
+
+      marginBottom:
+        spacing.lg,
+
+      borderWidth:
+        2,
+
+      borderColor:
+        colors.border,
+
+      backgroundColor:
+        colors.surface,
+    },
+
+    tab: {
+      flex: 1,
+
+      minHeight:
+        42,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      borderRightWidth:
+        1,
+
+      borderRightColor:
+        colors.border,
+    },
+
+    tabActive: {
+      backgroundColor:
+        colors.primary,
+    },
+
+    tabGoldActive: {
+      backgroundColor:
+        '#FFD700',
+    },
+
+    tabText: {
+      fontFamily:
+        'PressStart2P',
+
+      fontSize:
+        7,
+
+      color:
+        colors.textSecondary,
+    },
+
+    tabTextActive: {
+      color:
+        colors.background,
+    },
+
+    tabGoldTextActive: {
+      color:
+        colors.background,
     },
 
   });

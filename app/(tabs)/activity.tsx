@@ -282,6 +282,38 @@
             profileId={profileId}
           />
 
+          <Pressable
+  style={styles.stepsHistoryButton}
+  onPress={() => {
+    router.push({
+      pathname: '/activity/steps-history',
+      params: {
+        profileId,
+      },
+    });
+  }}
+>
+  <View>
+    <Text
+      style={styles.stepsHistoryTitle}
+    >
+      STEPS HISTORY
+    </Text>
+
+    <Text
+      style={styles.stepsHistorySubtitle}
+    >
+      VIEW YOUR DAILY STEP RECORD
+    </Text>
+  </View>
+
+  <Text
+    style={styles.stepsHistoryArrow}
+  >
+    →
+  </Text>
+</Pressable>
+
           {/* ====================================
               RUNNING
               ==================================== */}
@@ -635,4 +667,65 @@
 
       fontSize: 32,
     },
+
+
+
+    stepsHistoryButton: {
+  marginTop: 12,
+
+  minHeight: 76,
+
+  paddingHorizontal: 18,
+
+  paddingVertical: 15,
+
+  borderRadius: 17,
+
+  backgroundColor:
+    '#181818',
+
+  borderWidth: 1,
+
+  borderColor:
+    '#292929',
+
+  flexDirection: 'row',
+
+  alignItems: 'center',
+
+  justifyContent:
+    'space-between',
+},
+
+stepsHistoryTitle: {
+  color:
+    colors.text,
+
+  fontFamily:
+    'PressStart2P',
+
+  fontSize: 11,
+},
+
+stepsHistorySubtitle: {
+  color:
+    colors.textSecondary,
+
+  fontFamily:
+    'VT323',
+
+  fontSize: 16,
+
+  marginTop: 6,
+},
+
+stepsHistoryArrow: {
+  color:
+    colors.primary,
+
+  fontFamily:
+    'VT323',
+
+  fontSize: 32,
+},
   });

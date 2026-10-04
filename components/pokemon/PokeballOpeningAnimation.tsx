@@ -38,6 +38,34 @@ const BALL_ANIMATIONS: Record<
   PokeballType,
   BallAnimationAssets
 > = {
+
+  jester_ball: {
+  ball: require(
+    '../../assets/pokemon/animations/jester_ball/ball_JESTERBALL.png'
+  ),
+
+  open: require(
+    '../../assets/pokemon/animations/jester_ball/ball_JESTERBALL_open.png'
+  ),
+
+  effects: [
+    require(
+      '../../assets/pokemon/animations/jester_ball/1.png'
+    ),
+    require(
+      '../../assets/pokemon/animations/jester_ball/2.png'
+    ),
+    require(
+      '../../assets/pokemon/animations/jester_ball/3.png'
+    ),
+    require(
+      '../../assets/pokemon/animations/jester_ball/4.png'
+    ),
+    require(
+      '../../assets/pokemon/animations/jester_ball/5.png'
+    ),
+  ],
+},
   /*
    * ----------------------------------------------------------
    * POKÉ BALL

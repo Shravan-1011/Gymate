@@ -1142,6 +1142,9 @@ function describeCatchRule(
     catchRule
   ) {
 
+    case 'jester_ball':
+  return 'FINDS A BASIC-STAGE POKÉMON WITH RARITY-BASED ODDS.';
+
     case 'basic_form':
       return 'FINDS A BASIC-STAGE POKÉMON.';
 

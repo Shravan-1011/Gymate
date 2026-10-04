@@ -25,15 +25,20 @@ import {
   type StepsProgress,
 } from '../../services/activityService';
 
+
 type StepsCardProps = {
   profileId: string;
 };
 
+
 export default function StepsCard({
   profileId,
 }: StepsCardProps) {
+
   const [steps, setSteps] =
-    useState<StepsProgress | null>(null);
+    useState<StepsProgress | null>(
+      null
+    );
 
   const [loading, setLoading] =
     useState(true);
@@ -42,11 +47,16 @@ export default function StepsCard({
     useState(false);
 
   const [error, setError] =
-    useState<string | null>(null);
+    useState<string | null>(
+      null
+    );
 
-  const subscriptionRef = useRef<{
-    remove: () => void;
-  } | null>(null);
+
+  const subscriptionRef =
+    useRef<{
+      remove: () => void;
+    } | null>(null);
+
 
   /*
    * ========================================
@@ -54,85 +64,109 @@ export default function StepsCard({
    * ========================================
    */
 
-  const loadSteps = useCallback(async () => {
-    try {
-      setError(null);
+  const loadSteps =
+    useCallback(async () => {
 
-      /*
-       * Check whether the device supports
-       * the pedometer.
-       */
+      try {
 
-      const status =
-        await getDevicePedometerStatus();
+        setError(null);
 
-      if (!status.available) {
-        setError(
-          'Step counter is not available on this device.',
-        );
 
-        setSteps(null);
+        /*
+         * Check whether the device
+         * supports the pedometer.
+         */
 
-        return;
-      }
+        const status =
+          await getDevicePedometerStatus();
 
-      /*
-       * Ask for permission when necessary.
-       */
 
-      if (
-        status.permission !== 'granted'
-      ) {
-         const diagnostic =
-    await getDevicePedometerStatus();
-        const permission =
-          await requestDevicePedometerPermission();
+        if (!status.available) {
 
-        if (permission !== 'granted') {
           setError(
-             `Pedometer permission: ${diagnostic.rawStatus} | available: ${diagnostic.available}`,
+            'Step counter is not available on this device.',
           );
 
           setSteps(null);
 
           return;
         }
-      }
 
-      
-      /*
-       * Read today's actual system
-       * step count.
-       */
 
-      await refreshTodaySteps(
-        profileId,
-      );
+        /*
+         * Ask for permission when necessary.
+         */
 
-      /*
-       * Read the value Gymate stored
-       * after synchronization.
-       */
+        if (
+          status.permission !==
+          'granted'
+        ) {
 
-      const progress =
-        await getTodayStepsProgress(
+          const diagnostic =
+            await getDevicePedometerStatus();
+
+          const permission =
+            await requestDevicePedometerPermission();
+
+
+          if (
+            permission !==
+            'granted'
+          ) {
+
+            setError(
+              `Pedometer permission: ${diagnostic.rawStatus} | available: ${diagnostic.available}`,
+            );
+
+            setSteps(null);
+
+            return;
+          }
+        }
+
+
+        /*
+         * Read today's actual
+         * system step count.
+         */
+
+        await refreshTodaySteps(
           profileId,
         );
 
-      setSteps(progress);
-    } catch (err) {
-      console.error(
-        'Failed to load steps:',
-        err,
-      );
 
-      setError(
-        'Unable to read your steps right now.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [profileId]);
+        /*
+         * Read the value Gymate
+         * stored after synchronization.
+         */
+
+        const progress =
+          await getTodayStepsProgress(
+            profileId,
+          );
+
+
+        setSteps(progress);
+
+      } catch (err) {
+
+        console.error(
+          'Failed to load steps:',
+          err,
+        );
+
+        setError(
+          'Unable to read your steps right now.',
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    }, [profileId]);
+
 
   /*
    * ========================================
@@ -141,12 +175,18 @@ export default function StepsCard({
    */
 
   useEffect(() => {
+
     let mounted = true;
 
+
     async function setup() {
+
       try {
+
         setLoading(true);
+
         setError(null);
+
 
         /*
          * Check pedometer availability.
@@ -155,11 +195,14 @@ export default function StepsCard({
         const status =
           await getDevicePedometerStatus();
 
+
         if (!mounted) {
           return;
         }
 
+
         if (!status.available) {
+
           setError(
             'Step counter is not available on this device.',
           );
@@ -169,6 +212,7 @@ export default function StepsCard({
           return;
         }
 
+
         /*
          * Request permission if needed.
          */
@@ -176,20 +220,28 @@ export default function StepsCard({
         let permission =
           status.permission;
 
+
         if (
-          permission !== 'granted'
+          permission !==
+          'granted'
         ) {
+
           permission =
             await requestDevicePedometerPermission();
+
         }
+
 
         if (!mounted) {
           return;
         }
 
+
         if (
-          permission !== 'granted'
+          permission !==
+          'granted'
         ) {
+
           setError(
             'Step counter permission is required to read your steps.',
           );
@@ -199,6 +251,7 @@ export default function StepsCard({
           return;
         }
 
+
         /*
          * Initial sync.
          */
@@ -207,22 +260,28 @@ export default function StepsCard({
           profileId,
         );
 
+
         const initialProgress =
           await getTodayStepsProgress(
             profileId,
           );
 
+
         if (!mounted) {
           return;
         }
 
-        setSteps(initialProgress);
+
+        setSteps(
+          initialProgress
+        );
+
         setLoading(false);
+
 
         /*
          * Start live pedometer watcher.
          *
-         * IMPORTANT:
          * activityService re-reads the
          * complete today's step count when
          * the watcher fires.
@@ -232,99 +291,143 @@ export default function StepsCard({
           await subscribeToDeviceSteps(
             profileId,
             async () => {
+
               if (!mounted) {
                 return;
               }
 
+
               try {
+
                 const updated =
                   await getTodayStepsProgress(
                     profileId,
                   );
 
+
                 if (mounted) {
-                  setSteps(updated);
+
+                  setSteps(
+                    updated
+                  );
+
                 }
+
               } catch (err) {
+
                 console.error(
                   'Failed to update steps:',
                   err,
                 );
+
               }
+
             },
           );
+
       } catch (err) {
+
         console.error(
           'Failed to initialise step tracking:',
           err,
         );
 
+
         if (mounted) {
+
           setError(
             'Unable to start step tracking.',
           );
 
           setLoading(false);
+
         }
+
       }
+
     }
+
 
     setup();
 
+
     return () => {
+
       mounted = false;
 
       subscriptionRef.current?.remove();
+
       subscriptionRef.current = null;
+
     };
+
   }, [profileId]);
+
 
   /*
    * ========================================
    * REFRESH WHEN RETURNING TO ACTIVITY
    * ========================================
-   *
-   * This is important because the user can
-   * walk while Gymate is closed/backgrounded.
    */
 
   useFocusEffect(
     useCallback(() => {
+
       let active = true;
 
+
       async function refreshOnFocus() {
+
         try {
+
           await refreshTodaySteps(
             profileId,
           );
 
+
           if (!active) {
             return;
           }
+
 
           const updated =
             await getTodayStepsProgress(
               profileId,
             );
 
+
           if (active) {
-            setSteps(updated);
+
+            setSteps(
+              updated
+            );
+
           }
+
         } catch (err) {
+
           console.error(
             'Failed to refresh steps on focus:',
             err,
           );
+
         }
+
       }
+
 
       refreshOnFocus();
 
+
       return () => {
+
         active = false;
+
       };
+
     }, [profileId]),
   );
+
 
   /*
    * ========================================
@@ -333,20 +436,27 @@ export default function StepsCard({
    */
 
   async function handleEvaluate() {
+
     if (
-      !steps?.goalReached ||
+      !steps ||
+      steps.xp <= 0 ||
       evaluating
     ) {
       return;
     }
 
+
     try {
+
       setEvaluating(true);
+
       setError(null);
+
 
       await evaluateTodayStepsXP(
         profileId,
       );
+
 
       /*
        * Reload after evaluation so the
@@ -359,8 +469,13 @@ export default function StepsCard({
           profileId,
         );
 
-      setSteps(updated);
+
+      setSteps(
+        updated
+      );
+
     } catch (err) {
+
       console.error(
         'Failed to evaluate step XP:',
         err,
@@ -369,10 +484,15 @@ export default function StepsCard({
       setError(
         'Unable to evaluate step XP.',
       );
+
     } finally {
+
       setEvaluating(false);
+
     }
+
   }
+
 
   /*
    * ========================================
@@ -381,9 +501,13 @@ export default function StepsCard({
    */
 
   if (loading) {
+
     return (
+
       <View style={styles.card}>
+
         <View style={styles.header}>
+
           <Text style={styles.title}>
             STEPS
           </Text>
@@ -391,14 +515,20 @@ export default function StepsCard({
           <ActivityIndicator
             color="#b7ff3c"
           />
+
         </View>
+
 
         <Text style={styles.loadingText}>
           Reading today's steps...
         </Text>
+
       </View>
+
     );
+
   }
+
 
   /*
    * ========================================
@@ -407,31 +537,43 @@ export default function StepsCard({
    */
 
   if (!steps) {
+
     return (
+
       <View style={styles.card}>
+
         <Text style={styles.title}>
           STEPS
         </Text>
+
 
         <Text style={styles.errorText}>
           {error ??
             'No step data available.'}
         </Text>
 
+
         <Pressable
           style={styles.refreshButton}
           onPress={loadSteps}
         >
+
           <Text style={styles.refreshText}>
             TRY AGAIN
           </Text>
+
         </Pressable>
+
       </View>
+
     );
+
   }
+
 
   const progressWidth =
     `${steps.progressPercent}%` as `${number}%`;
+
 
   /*
    * ========================================
@@ -440,9 +582,13 @@ export default function StepsCard({
    */
 
   return (
+
     <View style={styles.card}>
+
       <View style={styles.header}>
+
         <View>
+
           <Text style={styles.title}>
             STEPS
           </Text>
@@ -450,14 +596,19 @@ export default function StepsCard({
           <Text style={styles.subtitle}>
             DAILY ACTIVITY
           </Text>
+
         </View>
+
 
         <Text style={styles.percent}>
           {steps.progressPercent}%
         </Text>
+
       </View>
 
+
       <View style={styles.stepRow}>
+
         <Text style={styles.stepsNumber}>
           {steps.stepCount.toLocaleString()}
         </Text>
@@ -465,243 +616,471 @@ export default function StepsCard({
         <Text style={styles.goalText}>
           / {steps.goal.toLocaleString()}
         </Text>
+
       </View>
 
+
       <View style={styles.progressTrack}>
+
         <View
           style={[
             styles.progressFill,
             {
-              width: progressWidth,
+              width:
+                progressWidth,
             },
           ]}
         />
+
       </View>
 
+
       <View style={styles.bottomRow}>
+
         <View>
+
           {steps.goalReached ? (
+
             <Text style={styles.successText}>
               10K GOAL COMPLETE
             </Text>
+
           ) : (
+
             <Text style={styles.remainingText}>
               {steps.remaining.toLocaleString()}{' '}
               steps remaining
             </Text>
+
           )}
+
         </View>
 
+
         <View style={styles.xpBadge}>
+
           <Text style={styles.xpText}>
             +{steps.xp} XP
           </Text>
+
         </View>
+
       </View>
 
-      {steps.goalReached &&
+
+      /*
+       * IMPORTANT:
+       *
+       * The button is now available
+       * whenever the user has earned
+       * at least 1 XP.
+       */
+
+      {steps.xp > 0 &&
         !steps.evaluated && (
+
           <Pressable
             style={styles.claimButton}
             onPress={handleEvaluate}
             disabled={evaluating}
           >
+
             {evaluating ? (
+
               <ActivityIndicator
                 color="#111111"
               />
+
             ) : (
+
               <Text style={styles.claimText}>
-                CLAIM +100 XP
+                CLAIM +{steps.xp} XP
               </Text>
+
             )}
+
           </Pressable>
+
         )}
 
+
       {steps.evaluated && (
+
         <View style={styles.evaluatedBox}>
+
           <Text style={styles.evaluatedText}>
             ✓ TODAY'S STEP XP EVALUATED
           </Text>
+
         </View>
+
       )}
 
+
       {error && (
+
         <Text style={styles.errorText}>
           {error}
         </Text>
+
       )}
+
 
       <Pressable
         style={styles.refreshButton}
         onPress={loadSteps}
       >
+
         <Text style={styles.refreshText}>
           REFRESH
         </Text>
+
       </Pressable>
+
     </View>
+
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#171717',
-    borderWidth: 1,
-    borderColor: '#292929',
-    borderRadius: 12,
-    padding: 18,
-    marginBottom: 16,
-  },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
+const styles =
+  StyleSheet.create({
 
-  title: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
+    card: {
+      backgroundColor:
+        '#171717',
 
-  subtitle: {
-    color: '#707070',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 3,
-    letterSpacing: 1,
-  },
+      borderWidth: 1,
 
-  percent: {
-    color: '#b7ff3c',
-    fontSize: 18,
-    fontWeight: '900',
-  },
+      borderColor:
+        '#292929',
 
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginTop: 22,
-  },
+      borderRadius: 12,
 
-  stepsNumber: {
-    color: '#b7ff3c',
-    fontSize: 42,
-    fontWeight: '900',
-  },
+      padding: 18,
 
-  goalText: {
-    color: '#777777',
-    fontSize: 17,
-    fontWeight: '700',
-    marginLeft: 7,
-  },
+      marginBottom: 16,
+    },
 
-  progressTrack: {
-    height: 10,
-    backgroundColor: '#292929',
-    borderRadius: 5,
-    overflow: 'hidden',
-    marginTop: 16,
-  },
 
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#b7ff3c',
-    borderRadius: 5,
-  },
+    header: {
+      flexDirection:
+        'row',
 
-  bottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
+      alignItems:
+        'flex-start',
 
-  remainingText: {
-    color: '#8a8a8a',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+      justifyContent:
+        'space-between',
+    },
 
-  successText: {
-    color: '#b7ff3c',
-    fontSize: 12,
-    fontWeight: '900',
-  },
 
-  xpBadge: {
-    backgroundColor: '#232323',
-    borderRadius: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-  },
+    title: {
+      color:
+        '#ffffff',
 
-  xpText: {
-    color: '#b7ff3c',
-    fontSize: 12,
-    fontWeight: '900',
-  },
+      fontSize:
+        18,
 
-  claimButton: {
-    height: 48,
-    backgroundColor: '#b7ff3c',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 18,
-  },
+      fontWeight:
+        '900',
 
-  claimText: {
-    color: '#111111',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
+      letterSpacing:
+        1,
+    },
 
-  evaluatedBox: {
-    height: 44,
-    backgroundColor: '#202820',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 18,
-  },
 
-  evaluatedText: {
-    color: '#b7ff3c',
-    fontSize: 11,
-    fontWeight: '800',
-  },
+    subtitle: {
+      color:
+        '#707070',
 
-  refreshButton: {
-    height: 40,
-    borderWidth: 1,
-    borderColor: '#333333',
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-  },
+      fontSize:
+        10,
 
-  refreshText: {
-    color: '#888888',
-    fontSize: 11,
-    fontWeight: '800',
-  },
+      fontWeight:
+        '700',
 
-  loadingText: {
-    color: '#888888',
-    marginTop: 20,
-  },
+      marginTop:
+        3,
 
-  errorText: {
-    color: '#ff7777',
-    fontSize: 12,
-    marginTop: 12,
-    textAlign: 'center',
-  },
-});
+      letterSpacing:
+        1,
+    },
+
+
+    percent: {
+      color:
+        '#b7ff3c',
+
+      fontSize:
+        18,
+
+      fontWeight:
+        '900',
+    },
+
+
+    stepRow: {
+      flexDirection:
+        'row',
+
+      alignItems:
+        'baseline',
+
+      marginTop:
+        22,
+    },
+
+
+    stepsNumber: {
+      color:
+        '#b7ff3c',
+
+      fontSize:
+        42,
+
+      fontWeight:
+        '900',
+    },
+
+
+    goalText: {
+      color:
+        '#777777',
+
+      fontSize:
+        17,
+
+      fontWeight:
+        '700',
+
+      marginLeft:
+        7,
+    },
+
+
+    progressTrack: {
+      height:
+        10,
+
+      backgroundColor:
+        '#292929',
+
+      borderRadius:
+        5,
+
+      overflow:
+        'hidden',
+
+      marginTop:
+        16,
+    },
+
+
+    progressFill: {
+      height:
+        '100%',
+
+      backgroundColor:
+        '#b7ff3c',
+
+      borderRadius:
+        5,
+    },
+
+
+    bottomRow: {
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'space-between',
+
+      marginTop:
+        16,
+    },
+
+
+    remainingText: {
+      color:
+        '#8a8a8a',
+
+      fontSize:
+        12,
+
+      fontWeight:
+        '600',
+    },
+
+
+    successText: {
+      color:
+        '#b7ff3c',
+
+      fontSize:
+        12,
+
+      fontWeight:
+        '900',
+    },
+
+
+    xpBadge: {
+      backgroundColor:
+        '#232323',
+
+      borderRadius:
+        6,
+
+      paddingHorizontal:
+        9,
+
+      paddingVertical:
+        6,
+    },
+
+
+    xpText: {
+      color:
+        '#b7ff3c',
+
+      fontSize:
+        12,
+
+      fontWeight:
+        '900',
+    },
+
+
+    claimButton: {
+      height:
+        48,
+
+      backgroundColor:
+        '#b7ff3c',
+
+      borderRadius:
+        8,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      marginTop:
+        18,
+    },
+
+
+    claimText: {
+      color:
+        '#111111',
+
+      fontSize:
+        13,
+
+      fontWeight:
+        '900',
+
+      letterSpacing:
+        0.5,
+    },
+
+
+    evaluatedBox: {
+      height:
+        44,
+
+      backgroundColor:
+        '#202820',
+
+      borderRadius:
+        8,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      marginTop:
+        18,
+    },
+
+
+    evaluatedText: {
+      color:
+        '#b7ff3c',
+
+      fontSize:
+        11,
+
+      fontWeight:
+        '800',
+    },
+
+
+    refreshButton: {
+      height:
+        40,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        '#333333',
+
+      borderRadius:
+        7,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      marginTop:
+        12,
+    },
+
+
+    refreshText: {
+      color:
+        '#888888',
+
+      fontSize:
+        11,
+
+      fontWeight:
+        '800',
+    },
+
+
+    loadingText: {
+      color:
+        '#888888',
+
+      marginTop:
+        20,
+    },
+
+
+    errorText: {
+      color:
+        '#ff7777',
+
+      fontSize:
+        12,
+
+      marginTop:
+        12,
+
+      textAlign:
+        'center',
+    },
+
+  });

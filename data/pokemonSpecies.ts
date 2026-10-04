@@ -9423,6 +9423,7 @@ export function getSpeciesByRarity(
 
 export function getCatchableSpeciesByRule(
   catchRule:
+    | 'jester_ball'
     | 'basic_form'
     | 'short_final_form'
     | 'mid_evolution_form'
@@ -9442,6 +9443,11 @@ export function getCatchableSpeciesByRule(
        * Poké Ball:
        * Common, Stage 1 only.
        */
+      case 'jester_ball':
+  return (
+    species.evolutionStage === 1
+  );
+
       case 'basic_form':
         return (
           species.evolutionStage === 1 &&

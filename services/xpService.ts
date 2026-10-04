@@ -747,36 +747,42 @@ export async function awardRunningXP(
 export async function award10KStepsXP(
   profileId: string,
   stepDate: string,
-  stepCount: number
-): Promise<
-  XPAwardResult | null
-> {
-  if (
-    !Number.isFinite(
-      stepCount
-    )
-  ) {
-    throw new Error(
-      'INVALID_STEP_COUNT'
-    );
+  stepCount: number,
+  alreadyAwardedXP: number = 0
+): Promise<XPAwardResult | null> {
+  if (!Number.isFinite(stepCount)) {
+    throw new Error('INVALID_STEP_COUNT');
   }
 
-  if (
-    stepCount < 10000
-  ) {
+  const STEP_GOAL = 10000;
+
+  const completion = Math.max(
+    0,
+    Math.min(
+      1,
+      stepCount / STEP_GOAL
+    )
+  );
+
+  const totalEligibleXP = Math.floor(
+    completion *
+      XP_REWARDS.STEPS_10K_COMPLETED
+  );
+
+  const newXP = Math.max(
+    0,
+    totalEligibleXP - alreadyAwardedXP
+  );
+
+  if (newXP <= 0) {
     return null;
   }
 
   return awardXP(
     profileId,
-
-    XP_REWARDS.STEPS_10K_COMPLETED,
-
+    newXP,
     XP_REASONS.STEPS_10K_COMPLETED,
-
-    stepDate,
-
-    stepDate
+    `${stepDate}:${totalEligibleXP}`
   );
 }
 

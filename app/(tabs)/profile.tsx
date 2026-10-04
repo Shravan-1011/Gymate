@@ -1548,160 +1548,163 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
 
-  /*
-   * ======================================
-   * CONTAINER
-   * ======================================
-   */
+  // ============================================================
+  // CONTAINER
+  // ============================================================
 
   container: {
     flex: 1,
-    backgroundColor:
-      colors.background,
+    backgroundColor: colors.background,
   },
 
   content: {
-    paddingHorizontal:
-      spacing.sm,
-    paddingTop:
-      spacing.xl,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.md,
     paddingBottom: 140,
   },
 
 
-  /*
-   * ======================================
-   * CARD
-   * ======================================
-   */
+  // ============================================================
+  // MAIN TRAINER CARD
+  // ============================================================
 
   card: {
     width: '100%',
     maxWidth: 520,
     alignSelf: 'center',
-    backgroundColor:
-      colors.background,
+
+    backgroundColor: colors.background,
+
     padding: 4,
+
     borderWidth: 2,
-    borderColor:
-      colors.text,
+    borderColor: colors.text,
   },
 
   cardInner: {
-    borderWidth: 2,
-    borderColor:
-      colors.text,
-    padding:
-      spacing.sm,
-    backgroundColor:
-      colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+
+    padding: spacing.sm,
+
+    backgroundColor: colors.background,
+
     minWidth: 0,
   },
 
 
-  /*
-   * ======================================
-   * HEADER
-   * ======================================
-   */
+  // ============================================================
+  // HEADER
+  // ============================================================
 
   header: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+
     alignItems: 'center',
-    justifyContent:
-      'space-between',
-    backgroundColor:
-      colors.surface,
+    justifyContent: 'space-between',
+
+    backgroundColor: colors.surface,
+
     borderWidth: 1,
-    borderColor:
-      colors.border,
-    padding:
-      spacing.sm,
-    marginBottom:
-      spacing.sm,
-    rowGap:
-      spacing.xs,
-    columnGap:
-      spacing.sm,
+    borderColor: colors.border,
+
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 9,
+
+    marginBottom: spacing.sm,
+
+    rowGap: spacing.xs,
+    columnGap: spacing.sm,
   },
 
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+
     flexShrink: 1,
     minWidth: 0,
-    gap:
-      spacing.xs,
+
+    gap: spacing.sm,
   },
 
   title: {
-    fontFamily:
-      'PressStart2P',
-    fontSize: 11,
+    fontFamily: 'PressStart2P',
+
+    fontSize: 10,
     lineHeight: 16,
-    color:
-      colors.text,
+
+    color: colors.text,
+
     flexShrink: 1,
   },
 
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+
     flexShrink: 1,
-    gap: 4,
+
+    gap: 5,
+
+    paddingLeft: spacing.xs,
   },
 
   headerTagline: {
-    fontFamily:
-      'VT323',
-    fontSize: 13,
-    lineHeight: 14,
-    color:
-      colors.textSecondary,
+    fontFamily: 'VT323',
+
+    fontSize: 14,
+    lineHeight: 16,
+
+    color: colors.textSecondary,
+
     textAlign: 'center',
   },
 
   sparkle: {
-    fontSize: 11,
-    color:
-      colors.textSecondary,
+    fontSize: 12,
+
+    color: colors.primary,
   },
 
 
-  /*
-   * ======================================
-   * POKÉBALL
-   * ======================================
-   */
+  // ============================================================
+  // POKÉBALL
+  // ============================================================
 
   pokeBall: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+
+    borderRadius: 17,
+
     overflow: 'hidden',
+
     borderWidth: 2,
-    borderColor:
-      colors.text,
+    borderColor: colors.text,
+
     position: 'relative',
-    backgroundColor:
-      colors.background,
+
+    backgroundColor: colors.background,
   },
 
   pokeBallSmall: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 27,
+    height: 27,
+
+    borderRadius: 14,
   },
 
   pokeBallTop: {
     position: 'absolute',
+
     top: 0,
     left: 0,
     right: 0,
+
     height: '50%',
-    backgroundColor:
-      colors.primary,
+
+    backgroundColor: colors.primary,
   },
 
   pokeBallTopSmall: {
@@ -1710,12 +1713,15 @@ const styles = StyleSheet.create({
 
   pokeBallLine: {
     position: 'absolute',
+
     left: 0,
     right: 0,
+
     top: '50%',
+
     height: 2,
-    backgroundColor:
-      colors.text,
+
+    backgroundColor: colors.text,
   },
 
   pokeBallLineSmall: {
@@ -1724,15 +1730,20 @@ const styles = StyleSheet.create({
 
   pokeBallButton: {
     position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor:
-      colors.text,
+
+    width: 13,
+    height: 13,
+
+    borderRadius: 7,
+
+    backgroundColor: colors.text,
+
     left: '50%',
     top: '50%',
-    marginLeft: -6,
-    marginTop: -6,
+
+    marginLeft: -6.5,
+    marginTop: -6.5,
+
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1740,395 +1751,436 @@ const styles = StyleSheet.create({
   pokeBallButtonSmall: {
     width: 10,
     height: 10,
+
     borderRadius: 5,
+
     marginLeft: -5,
     marginTop: -5,
   },
 
   pokeBallButtonInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor:
-      colors.background,
+    width: 7,
+    height: 7,
+
+    borderRadius: 4,
+
+    backgroundColor: colors.background,
   },
 
   pokeBallButtonInnerSmall: {
     width: 5,
     height: 5,
-    borderRadius: 2.5,
+
+    borderRadius: 3,
   },
 
 
-  /*
-   * ======================================
-   * TRAINER
-   * ======================================
-   */
+  // ============================================================
+  // TRAINER
+  // ============================================================
 
   trainerSection: {
     flexDirection: 'row',
-    backgroundColor:
-      colors.surface,
+
+    backgroundColor: colors.surface,
+
     borderWidth: 1,
-    borderColor:
-      colors.border,
-    marginBottom:
-      spacing.sm,
-    minHeight: 170,
+    borderColor: colors.border,
+
+    marginBottom: spacing.sm,
+
+    minHeight: 184,
+
+    overflow: 'hidden',
   },
 
   trainerPhotoContainer: {
     width: '42%',
-    minHeight: 170,
+    minHeight: 184,
+
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor:
-      colors.background,
+
+    backgroundColor: colors.background,
+
     borderRightWidth: 1,
-    borderRightColor:
-      colors.border,
+    borderRightColor: colors.border,
+
     overflow: 'hidden',
   },
 
   trainerImage: {
     width: '100%',
-    height: 150,
+    height: 164,
   },
 
   trainerPlaceholder: {
     width: 110,
-    height: 140,
+    height: 142,
+
     borderWidth: 2,
-    borderColor:
-      colors.border,
+    borderColor: colors.border,
+
     alignItems: 'center',
     justifyContent: 'center',
+
+    backgroundColor: colors.surface,
   },
 
   trainerPlaceholderText: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 7,
-    color:
-      colors.textMuted,
+
+    color: colors.textMuted,
+
+    letterSpacing: 0.5,
   },
 
   trainerInfo: {
     flex: 1,
-    padding:
-      spacing.sm,
-    justifyContent:
-      'center',
+
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+
+    justifyContent: 'center',
+
+    minWidth: 0,
   },
 
   trainerLabel: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 7,
-    color:
-      colors.textMuted,
-    marginBottom:
-      spacing.xs,
+
+    color: colors.primary,
+
+    marginBottom: spacing.xs,
   },
 
   trainerName: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 11,
-    lineHeight: 17,
-    color:
-      colors.text,
-    marginBottom:
-      spacing.md,
+    lineHeight: 18,
+
+    color: colors.text,
+
+    marginBottom: spacing.md,
+
+    flexShrink: 1,
   },
 
   trainerButton: {
+    alignSelf: 'flex-start',
+
     borderWidth: 1,
-    borderColor:
-      colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    borderColor: colors.primary,
+
+    backgroundColor: colors.background,
+
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   trainerButtonText: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 6,
-    color:
-      colors.primary,
+
+    color: colors.primary,
   },
 
 
-  /*
-   * ======================================
-   * INFO
-   * ======================================
-   */
+  // ============================================================
+  // PROFILE INFO
+  // ============================================================
 
   infoSection: {
-    backgroundColor:
-      colors.surface,
+    backgroundColor: colors.surface,
+
     borderWidth: 1,
-    borderColor:
-      colors.border,
-    padding:
-      spacing.sm,
-    marginBottom:
-      spacing.sm,
+    borderColor: colors.border,
+
+    paddingHorizontal: spacing.sm,
+
+    marginBottom: spacing.sm,
   },
 
   infoRow: {
     flexDirection: 'row',
+
     alignItems: 'center',
-    minHeight: 38,
+
+    minHeight: 42,
+
     borderBottomWidth: 1,
-    borderBottomColor:
-      colors.border,
+    borderBottomColor: colors.border,
   },
 
   icon: {
-    width: 28,
-    height: 28,
+    width: 30,
+    height: 30,
+
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 4,
+
+    marginRight: spacing.xs,
+
+    backgroundColor: colors.background,
+
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 
   iconText: {
-    fontFamily:
-      'VT323',
+    fontFamily: 'VT323',
+
     fontSize: 18,
-    color:
-      colors.primary,
+
+    color: colors.primary,
   },
 
   infoLabel: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 6,
-    color:
-      colors.textMuted,
+
+    color: colors.textMuted,
+
     width: 76,
   },
 
   infoValueContainer: {
     flex: 1,
+
     alignItems: 'flex-end',
+
     minWidth: 0,
   },
 
   infoValue: {
-    fontFamily:
-      'VT323',
-    fontSize: 17,
-    color:
-      colors.text,
+    fontFamily: 'VT323',
+
+    fontSize: 18,
+
+    color: colors.text,
+
     textAlign: 'right',
   },
 
 
-  /*
-   * ======================================
-   * XP
-   * ======================================
-   */
+  // ============================================================
+  // XP
+  // ============================================================
 
   xpSection: {
-    backgroundColor:
-      colors.surface,
+    backgroundColor: colors.surface,
+
     borderWidth: 1,
-    borderColor:
-      colors.border,
-    marginBottom:
-      spacing.sm,
+    borderColor: colors.border,
+
+    marginBottom: spacing.sm,
+
+    overflow: 'hidden',
   },
 
   xpHeader: {
     flexDirection: 'row',
-    justifyContent:
-      'space-between',
+
+    justifyContent: 'space-between',
+
     alignItems: 'center',
-    padding:
-      spacing.sm,
+
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 9,
+
+    backgroundColor: colors.background,
+
     borderBottomWidth: 1,
-    borderBottomColor:
-      colors.border,
+    borderBottomColor: colors.border,
   },
 
   xpTitle: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 7,
-    color:
-      colors.text,
+
+    color: colors.text,
   },
 
   xpLevelTop: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 7,
-    color:
-      colors.primary,
+
+    color: colors.primary,
   },
 
   xpBody: {
-    padding:
-      spacing.sm,
+    padding: spacing.sm,
   },
 
   xpNumber: {
-    fontFamily:
-      'VT323',
-    fontSize: 22,
-    color:
-      colors.text,
-    marginBottom:
-      spacing.xs,
+    fontFamily: 'VT323',
+
+    fontSize: 25,
+
+    color: colors.text,
+
+    marginBottom: spacing.sm,
   },
 
   xpOf: {
-    fontFamily:
-      'VT323',
-    fontSize: 15,
-    color:
-      colors.textMuted,
+    fontFamily: 'VT323',
+
+    fontSize: 16,
+
+    color: colors.textMuted,
   },
 
   barTrack: {
     width: '100%',
-    height: 9,
-    backgroundColor:
-      colors.background,
+
+    height: 11,
+
+    backgroundColor: colors.background,
+
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: colors.border,
+
     overflow: 'hidden',
   },
 
   barFill: {
     height: '100%',
-    backgroundColor:
-      colors.primary,
+
+    backgroundColor: colors.primary,
   },
 
   xpLevel: {
-    fontFamily:
-      'VT323',
+    fontFamily: 'VT323',
+
     fontSize: 14,
-    color:
-      colors.textMuted,
-    marginTop: 4,
+
+    color: colors.textMuted,
+
+    marginTop: 5,
   },
 
 
-  /*
-   * ======================================
-   * FOOTER
-   * ======================================
-   */
+  // ============================================================
+  // POKÉDEX + BADGES
+  // ============================================================
 
   footer: {
-    backgroundColor:
-      colors.surface,
+    backgroundColor: colors.surface,
+
     borderWidth: 1,
-    borderColor:
-      colors.border,
-    padding:
-      spacing.sm,
+    borderColor: colors.border,
+
+    padding: spacing.sm,
   },
 
   footerTitle: {
     flexDirection: 'row',
+
     alignItems: 'center',
-    gap: 6,
+
+    gap: 7,
+
     minWidth: 76,
     flexShrink: 0,
-    marginBottom:
-      spacing.sm,
+
+    marginBottom: spacing.sm,
   },
 
   pokedexTitle: {
-    fontFamily:
-      'VT323',
-    fontSize: 14,
-    lineHeight: 16,
-    color:
-      colors.text,
+    fontFamily: 'VT323',
+
+    fontSize: 15,
+    lineHeight: 17,
+
+    color: colors.text,
   },
 
   pokedexSub: {
-    fontFamily:
-      'VT323',
-    fontSize: 12,
+    fontFamily: 'VT323',
+
+    fontSize: 13,
     lineHeight: 14,
-    color:
-      colors.textMuted,
+
+    color: colors.primary,
+
     marginTop: 1,
   },
 
 
-  /*
-   * ======================================
-   * GYM BADGES HEADER
-   * ======================================
-   */
+  // ============================================================
+  // GYM BADGES HEADER
+  // ============================================================
 
   gymBadgesHeader: {
     flexDirection: 'row',
+
     alignItems: 'center',
-    justifyContent:
-      'space-between',
-    paddingBottom:
-      spacing.xs,
-    marginBottom:
-      spacing.sm,
+
+    justifyContent: 'space-between',
+
+    paddingBottom: spacing.sm,
+
+    marginBottom: spacing.sm,
+
     borderBottomWidth: 1,
-    borderBottomColor:
-      colors.border,
+    borderBottomColor: colors.border,
   },
 
   gymBadgesTitle: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 9,
-    color:
-      colors.text,
+
+    color: colors.text,
   },
 
   gymBadgesSub: {
-    fontFamily:
-      'VT323',
+    fontFamily: 'VT323',
+
     fontSize: 13,
-    color:
-      colors.textMuted,
-    marginTop: 2,
+
+    color: colors.textMuted,
+
+    marginTop: 3,
   },
 
   viewBadgesButton: {
     borderWidth: 1,
-    borderColor:
-      colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderColor: colors.primary,
+
+    backgroundColor: colors.background,
+
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   viewBadgesText: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 6,
-    color:
-      colors.primary,
+
+    color: colors.primary,
   },
 
 
-  /*
-   * ======================================
-   * BADGES
-   * ======================================
-   */
+  // ============================================================
+  // BADGES
+  // ============================================================
 
   badgeGridPressable: {
     width: '100%',
@@ -2140,123 +2192,123 @@ const styles = StyleSheet.create({
 
   badgeGrid: {
     width: '100%',
+
     flexDirection: 'row',
     flexWrap: 'wrap',
+
     gap: 6,
   },
 
   badgeSlot: {
     width: '23%',
     aspectRatio: 1,
+
     borderWidth: 1,
-    borderColor:
-      colors.border,
-    backgroundColor:
-      colors.background,
-    justifyContent:
-      'center',
-    alignItems:
-      'center',
+    borderColor: colors.border,
+
+    backgroundColor: colors.background,
+
+    justifyContent: 'center',
+    alignItems: 'center',
+
     overflow: 'hidden',
   },
 
   badgeSlotEarned: {
-    borderColor:
-      colors.text,
+    borderColor: colors.text,
+
+    backgroundColor: colors.surface,
   },
 
   badgeSlotGold: {
-    borderColor:
-      colors.primary,
+    borderColor: colors.primary,
+
     borderWidth: 2,
+
+    backgroundColor: colors.surface,
   },
 
   badgeLoading: {
-    width: '60%',
-    height: '60%',
-    backgroundColor:
-      colors.border,
-    opacity: 0.35,
+    width: '52%',
+    height: '52%',
+
+    backgroundColor: colors.border,
+
+    opacity: 0.25,
   },
 
 
-  /*
-   * ======================================
-   * EXTRA PROFILE
-   * ======================================
-   */
+  // ============================================================
+  // EXTRA PROFILE
+  // ============================================================
 
   extraSection: {
-    backgroundColor:
-      colors.surface,
-    borderWidth: 2,
-    borderColor:
-      colors.border,
-    padding:
-      spacing.md,
-    marginTop:
-      spacing.lg,
-    marginBottom:
-      spacing.md,
+    backgroundColor: colors.surface,
+
+    borderWidth: 1,
+    borderColor: colors.border,
+
+    padding: spacing.md,
+
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
 
   extraTitle: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 8,
-    color:
-      colors.primary,
-    marginBottom:
-      spacing.xs,
+
+    color: colors.primary,
+
+    marginBottom: spacing.xs,
   },
 
   extraValue: {
-    fontFamily:
-      'VT323',
-    fontSize: 18,
-    color:
-      colors.text,
+    fontFamily: 'VT323',
+
+    fontSize: 19,
+
+    color: colors.text,
   },
 
 
-  /*
-   * ======================================
-   * PROGRESSION
-   * ======================================
-   */
+  // ============================================================
+  // PROGRESSION
+  // ============================================================
 
   progressionSection: {
-    backgroundColor:
-      colors.surface,
-    borderWidth: 2,
-    borderColor:
-      colors.border,
-    padding:
-      spacing.md,
-    marginBottom:
-      spacing.md,
+    backgroundColor: colors.surface,
+
+    borderWidth: 1,
+    borderColor: colors.border,
+
+    padding: spacing.md,
+
+    marginBottom: spacing.md,
   },
 
   progressionTitle: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 8,
-    color:
-      colors.primary,
-    marginBottom:
-      spacing.sm,
+
+    color: colors.primary,
+
+    marginBottom: spacing.sm,
   },
 
   progressionRow: {
     flexDirection: 'row',
+
     alignItems: 'center',
-    justifyContent:
-      'space-between',
-    paddingVertical:
-      spacing.xs,
+
+    justifyContent: 'space-between',
+
+    paddingVertical: spacing.xs,
+
     borderBottomWidth: 1,
-    borderBottomColor:
-      colors.border,
+    borderBottomColor: colors.border,
   },
 
   progressionRowLast: {
@@ -2264,73 +2316,55 @@ const styles = StyleSheet.create({
   },
 
   progressionLabel: {
-    fontFamily:
-      'VT323',
+    fontFamily: 'VT323',
+
     fontSize: 14,
-    color:
-      colors.textMuted,
+
+    color: colors.textMuted,
   },
 
   progressionValue: {
-    fontFamily:
-      'VT323',
-    fontSize: 16,
+    fontFamily: 'VT323',
+
+    fontSize: 17,
+
     fontWeight: '700',
-    color:
-      colors.text,
+
+    color: colors.text,
   },
 
 
-  /*
-   * ======================================
-   * BUTTONS
-   * ======================================
-   */
+  // ============================================================
+  // MAIN BUTTON
+  // ============================================================
 
   button: {
-    minHeight: 52,
-    backgroundColor:
-      colors.primary,
+    minHeight: 50,
+
+    backgroundColor: colors.primary,
+
     borderWidth: 2,
-    borderColor:
-      colors.primary,
-    alignItems:
-      'center',
-    justifyContent:
-      'center',
-    marginBottom:
-      spacing.md,
+    borderColor: colors.primary,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginBottom: spacing.md,
+
+    paddingHorizontal: spacing.md,
   },
 
   buttonText: {
-    fontFamily:
-      'PressStart2P',
-    fontSize: 9,
-    color:
-      colors.background,
-  },
+    fontFamily: 'PressStart2P',
 
-  logoutButton: {
-    minHeight: 48,
-    borderWidth: 2,
-    borderColor:
-      colors.border,
-    alignItems:
-      'center',
-    justifyContent:
-      'center',
-  },
-
-  logoutText: {
-    fontFamily:
-      'PressStart2P',
     fontSize: 9,
-    color:
-      colors.textSecondary,
+
+    color: colors.background,
   },
 
   buttonPressed: {
     opacity: 0.65,
+
     transform: [
       {
         translateY: 2,
@@ -2338,181 +2372,235 @@ const styles = StyleSheet.create({
     ],
   },
 
+  logoutButton: {
+    minHeight: 48,
 
-  /*
-   * ======================================
-   * AUDIO
-   * ======================================
-   */
+    backgroundColor: colors.surface,
+
+    borderWidth: 1,
+    borderColor: colors.border,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginBottom: spacing.md,
+  },
+
+  logoutText: {
+    fontFamily: 'PressStart2P',
+
+    fontSize: 8,
+
+    color: colors.textSecondary,
+  },
+
+
+  // ============================================================
+  // AUDIO
+  // ============================================================
 
   audioSection: {
-    marginTop: 24,
+    marginTop: spacing.sm,
+
+    marginBottom: spacing.md,
   },
 
   sectionTitle: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 11,
-    color:
-      '#B8FF00',
-    marginBottom: 12,
+
+    color: colors.primary,
+
+    marginBottom: spacing.sm,
   },
 
   audioCard: {
     borderWidth: 1,
-    borderColor:
-      '#333',
-    backgroundColor:
-      '#111',
-    padding: 14,
-    marginBottom: 10,
+
+    borderColor: colors.border,
+
+    backgroundColor: colors.surface,
+
+    padding: spacing.md,
+
+    marginBottom: spacing.sm,
   },
 
   audioHeader: {
     flexDirection: 'row',
+
     alignItems: 'center',
-    justifyContent:
-      'space-between',
+
+    justifyContent: 'space-between',
+
+    gap: spacing.sm,
   },
 
   audioHeaderText: {
     flex: 1,
-    paddingRight: 12,
+
+    paddingRight: spacing.xs,
+
+    minWidth: 0,
   },
 
   audioTitle: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 9,
-    color:
-      '#FFFFFF',
+
+    color: colors.text,
   },
 
   audioSubtitle: {
-    fontFamily:
-      'PressStart2P',
-    fontSize: 6,
-    color:
-      '#777',
-    marginTop: 8,
+    fontFamily: 'VT323',
+
+    fontSize: 13,
+
+    color: colors.textMuted,
+
+    marginTop: 5,
   },
 
   audioToggle: {
     borderWidth: 1,
-    borderColor:
-      '#555555',
+
+    borderColor: colors.border,
+
+    backgroundColor: colors.background,
+
     paddingVertical: 8,
     paddingHorizontal: 12,
+
     minWidth: 52,
+
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   audioToggleActive: {
-    borderColor:
-      '#B8FF00',
-    backgroundColor:
-      '#151D00',
+    borderColor: colors.primary,
+
+    backgroundColor: colors.primary,
+
+    shadowColor: colors.primary,
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 2,
   },
 
   audioToggleText: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 7,
-    color:
-      '#666666',
+
+    color: colors.textMuted,
   },
 
   audioToggleTextActive: {
-    color:
-      '#B8FF00',
+    color: colors.background,
   },
 
   volumeContainer: {
-    marginTop: 18,
+    marginTop: spacing.md,
+
+    paddingTop: spacing.sm,
+
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
 
   volumeHeader: {
     flexDirection: 'row',
-    justifyContent:
-      'space-between',
+
+    justifyContent: 'space-between',
+
     alignItems: 'center',
-    marginBottom: 8,
+
+    marginBottom: spacing.sm,
   },
 
   volumeLabel: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 7,
-    color:
-      '#777',
+
+    color: colors.textMuted,
   },
 
   volumeValue: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 7,
-    color:
-      '#B8FF00',
+
+    color: colors.primary,
   },
 
   volumeTrack: {
-    height: 8,
-    backgroundColor:
-      '#292929',
+    height: 9,
+
+    backgroundColor: colors.background,
+
     borderWidth: 1,
-    borderColor:
-      '#444',
+    borderColor: colors.border,
+
     overflow: 'hidden',
   },
 
   volumeFill: {
     height: '100%',
-    backgroundColor:
-      '#B8FF00',
+
+    backgroundColor: colors.primary,
   },
 
   volumeButtons: {
     flexDirection: 'row',
-    justifyContent:
-      'flex-end',
-    gap: 8,
-    marginTop: 10,
+
+    justifyContent: 'flex-end',
+
+    gap: spacing.xs,
+
+    marginTop: spacing.sm,
   },
 
   volumeButton: {
-    width: 32,
-    height: 28,
+    width: 34,
+    height: 30,
+
     borderWidth: 1,
-    borderColor:
-      '#444',
+
+    borderColor: colors.border,
+
+    backgroundColor: colors.background,
+
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   volumeButtonText: {
-    fontFamily:
-      'PressStart2P',
+    fontFamily: 'PressStart2P',
+
     fontSize: 10,
-    color:
-      '#B8FF00',
+
+    color: colors.primary,
   },
 
 
-  /*
-   * ======================================
-   * TRAINER MODAL
-   * ======================================
-   */
+  // ============================================================
+  // TRAINER SELECTOR MODAL
+  // ============================================================
 
   trainerModalOverlay: {
     flex: 1,
+
     backgroundColor:
-      'rgba(0,0,0,0.82)',
+      'rgba(0,0,0,0.88)',
+
     alignItems: 'center',
     justifyContent: 'center',
-    padding:
-      spacing.md,
+
+    padding: spacing.md,
   },
 
 });

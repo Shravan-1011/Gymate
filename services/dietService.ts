@@ -33,6 +33,10 @@ import {
   DEFAULT_WATER_GOAL,
 } from '../types/diet';
 
+import {
+  getRecommendedNutritionGoals,
+} from './nutritionGoalService';
+
 
 /*
  * ========================================

@@ -21,6 +21,15 @@ import {
   spacing,
 } from '../../constants/theme';
 
+import {
+  getOrCreateTodayNutrition,
+  updateNutritionGoals,
+} from '../../services/dietService';
+
+import {
+  getRecommendedNutritionGoals,
+} from '../../services/nutritionGoalService';
+
 /*
  * ========================================
  * OPTIONS
@@ -296,59 +305,191 @@ export default function ProfileSetupScreen() {
      */
 
     try {
-      setIsSaving(true);
+  setIsSaving(true);
 
-      /*
-       * EXISTING PROFILE DETAILS
-       *
-       * Update instead of creating another row.
-       */
+  /*
+   * ======================================
+   * CHECK WHETHER NUTRITION DATA CHANGED
+   * ======================================
+   *
+   * Only these Profile fields affect
+   * Diet's recommended calorie/protein
+   * goals.
+   *
+   * Changing only trainer name must NOT
+   * reset today's Diet goals.
+   */
 
-      if (profileDetails) {
-        await updateProfileDetails({
-          displayName:
-            trimmedDisplayName,
+  const nutritionSettingsChanged =
+    !profileDetails ||
+    profileDetails.age !== parsedAge ||
+    profileDetails.heightCm !== parsedHeight ||
+    profileDetails.weightKg !== parsedWeight ||
+    profileDetails.fitnessGoal !== fitnessGoal ||
+    profileDetails.activityLevel !== activityLevel;
 
-          age: parsedAge,
 
-          heightCm: parsedHeight,
+  /*
+   * ======================================
+   * SAVE PROFILE
+   * ======================================
+   */
 
-          weightKg: parsedWeight,
+  if (profileDetails) {
+    await updateProfileDetails({
+      displayName:
+        trimmedDisplayName,
 
-          fitnessGoal,
+      age:
+        parsedAge,
 
-          activityLevel,
-        });
+      heightCm:
+        parsedHeight,
+
+      weightKg:
+        parsedWeight,
+
+      fitnessGoal,
+      activityLevel,
+    });
+  } else {
+    await createProfileDetails({
+      displayName:
+        trimmedDisplayName,
+
+      age:
+        parsedAge,
+
+      heightCm:
+        parsedHeight,
+
+      weightKg:
+        parsedWeight,
+
+      fitnessGoal,
+      activityLevel,
+    });
+  }
+
+
+  /*
+   * ======================================
+   * UPDATE TODAY'S DIET GOALS
+   * ======================================
+   *
+   * IMPORTANT:
+   *
+   * This runs ONLY when a nutrition-related
+   * Profile setting changed.
+   *
+   * Therefore:
+   *
+   * Profile change
+   *     ↓
+   * Recalculate today's goals ONCE
+   *
+   * Diet manual edit
+   *     ↓
+   * Persist normally
+   *
+   * Profile name-only change
+   *     ↓
+   * Do NOT touch Diet goals
+   */
+
+  if (
+    nutritionSettingsChanged &&
+    profile.id
+  ) {
+    const profileId =
+      profile.id;
+
+
+    /*
+     * Get the recommendation using the
+     * NEW Profile values that were just
+     * saved to the database.
+     */
+
+    const recommendedGoals =
+      await getRecommendedNutritionGoals(
+        profileId
+      );
+
+
+    /*
+     * Make sure today's nutrition row
+     * exists.
+     *
+     * Existing row:
+     *     returned unchanged
+     *
+     * New row:
+     *     created with defaults first
+     */
+
+    const todayNutrition =
+      await getOrCreateTodayNutrition(
+        profileId
+      );
+
+
+    /*
+     * Explicitly overwrite today's
+     * calorie + protein goals because
+     * the Profile nutrition settings
+     * changed.
+     *
+     * Water goal is intentionally NOT
+     * changed.
+     */
+
+    const updatedNutrition =
+      await updateNutritionGoals(
+        profileId,
+        todayNutrition.activityDate,
+        {
+          calorieGoal:
+            recommendedGoals.calorieGoal,
+
+          proteinGoal:
+            recommendedGoals.proteinGoal,
+        }
+      );
+
+
+    if (!updatedNutrition) {
+      throw new Error(
+        'FAILED_TO_UPDATE_NUTRITION_GOALS'
+      );
+    }
+
+
+    console.log(
+      '[GYMATE] PROFILE → DIET GOALS UPDATED',
+      {
+        profileId,
+
+        calorieGoal:
+          recommendedGoals.calorieGoal,
+
+        proteinGoal:
+          recommendedGoals.proteinGoal,
+
+        activityDate:
+          todayNutrition.activityDate,
       }
+    );
+  }
 
-      /*
-       * NEW PROFILE DETAILS
-       *
-       * First-time profile setup.
-       */
 
-      else {
-        await createProfileDetails({
-          displayName:
-            trimmedDisplayName,
+  /*
+   * Return to Profile.
+   */
 
-          age: parsedAge,
-
-          heightCm: parsedHeight,
-
-          weightKg: parsedWeight,
-
-          fitnessGoal,
-
-          activityLevel,
-        });
-      }
-
-      /*
-       * Return to Profile tab.
-       */
-
-      router.replace('/(tabs)/profile');
+  router.replace(
+    '/(tabs)/profile'
+  );
     } catch (error) {
       console.error(
         'Failed to save profile details:',
@@ -357,6 +498,13 @@ export default function ProfileSetupScreen() {
 
       if (error instanceof Error) {
         switch (error.message) {
+
+            case 'FAILED_TO_UPDATE_NUTRITION_GOALS':
+  setError(
+    'PROFILE SAVED, BUT DAILY NUTRITION GOALS COULD NOT BE UPDATED.'
+  );
+  break;
+
           case 'DISPLAY_NAME_REQUIRED':
             setError(
               'PLEASE ENTER YOUR TRAINER NAME.'

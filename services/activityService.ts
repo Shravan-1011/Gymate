@@ -178,30 +178,33 @@ export async function evaluateStepsForDate(
    * Gymate XP system.
    */
 
-  const result =
-    await award10KStepsXP(
-      profileId,
-      activityDate,
-      steps.stepCount
-    );
+ const result =
+  await award10KStepsXP(
+    profileId,
+    activityDate,
+    steps.stepCount,
+    steps.stepsXP
+  );
 
+const xpAwarded =
+  result?.xpAwarded ??
+  0;
 
-  const xpAwarded =
-    result?.xpAwarded ??
-    0;
+const totalStepsXP =
+  steps.stepsXP +
+  xpAwarded;
 
+const goalReached =
+  steps.stepCount >=
+  ACTIVITY_CONSTANTS.STEP_GOAL;
 
-  /*
-   * Persist evaluation.
-   */
-
-  const updated =
-    await setStepEvaluation(
-      profileId,
-      activityDate,
-      true,
-      xpAwarded
-    );
+const updated =
+  await setStepEvaluation(
+    profileId,
+    activityDate,
+    goalReached,
+    totalStepsXP
+  );
 
 
   return {
@@ -637,6 +640,28 @@ export async function getTodayStepsProgress(
     );
 
 
+  /*
+   * Steps XP is proportional to
+   * the percentage of the goal.
+   *
+   * 5,000 / 10,000 = 50 XP
+   * 7,500 / 10,000 = 75 XP
+   * 10,000 / 10,000 = 100 XP
+   */
+
+  const xp =
+    Math.min(
+      ACTIVITY_CONSTANTS.STEP_XP,
+      Math.floor(
+        (
+          stepCount /
+          goal
+        ) *
+        ACTIVITY_CONSTANTS.STEP_XP
+      ),
+    );
+
+
   return {
 
     stepCount,
@@ -650,10 +675,7 @@ export async function getTodayStepsProgress(
     goalReached:
       stepCount >= goal,
 
-    xp:
-      stepCount >= goal
-        ? ACTIVITY_CONSTANTS.STEP_XP
-        : 0,
+    xp,
 
     evaluated:
       steps.evaluated,

@@ -36,6 +36,7 @@ import {
   PokemonSpecies,
   PokeballConfig,
   PokeballType,
+   PokemonRarity,
 } from '../types/pokemon';
 
 /*
@@ -213,36 +214,90 @@ export function rollSpeciesForBall(
 ): PokemonSpecies | null {
   const config = getBallConfig(ballType);
 
-  if (config.catchRule === 'mega_evolution') {
+  if (
+    config.catchRule ===
+    'mega_evolution'
+  ) {
     throw new Error(
       'GS_BALL_DOES_NOT_ROLL_A_SPECIES'
     );
   }
 
-  const excluded = new Set(
-    excludeSpeciesIds
-  );
+  const excluded =
+    new Set(excludeSpeciesIds);
 
-  const pool = getCatchableSpeciesByRule(
-    config.catchRule
-  )
-  
-  .filter(
-  (species) =>
-    species.evolutionStage === 1
-)
-  
-  .filter(
-    (species) => !excluded.has(species.id)
+  let pool =
+    getCatchableSpeciesByRule(
+      config.catchRule
+    ).filter(
+      (species) =>
+        species.evolutionStage === 1
+    );
+
+  pool = pool.filter(
+    (species) =>
+      !excluded.has(species.id)
   );
 
   if (pool.length === 0) {
     return null;
   }
 
-  const index = Math.floor(
-    Math.random() * pool.length
-  );
+  /*
+   * ========================================
+   * JESTER BALL
+   * ========================================
+   *
+   * Rarity weights:
+   *
+   * Common     80%
+   * Uncommon   12%
+   * Rare        5%
+   * Legendary   3%
+   * ========================================
+   */
+
+  if (
+    config.catchRule ===
+    'jester_ball'
+  ) {
+    const rarityWeights: Record<
+      PokemonRarity,
+      number
+    > = {
+      common: 80,
+      uncommon: 12,
+      rare: 5,
+      legendary: 3,
+    };
+
+    const weightedPool =
+      pool.flatMap((species) => {
+        const weight =
+          rarityWeights[
+            species.rarity
+          ];
+
+        return Array(
+          weight
+        ).fill(species);
+      });
+
+    const index =
+      Math.floor(
+        Math.random() *
+          weightedPool.length
+      );
+
+    return (
+      weightedPool[index] ?? null
+    );
+  }
+
+  const index =
+    Math.floor(
+      Math.random() * pool.length
+    );
 
   return pool[index];
 }

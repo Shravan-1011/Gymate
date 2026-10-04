@@ -1,6 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+
 import {
+  Animated,
+  Easing,
+  GestureResponderEvent,
   LayoutChangeEvent,
+  PanResponder,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -9,6 +20,13 @@ import {
 import { colors } from '../../constants/theme';
 import type { RunLocationPoint } from '../../types/activity';
 
+
+/*
+ * ========================================
+ * TYPES
+ * ========================================
+ */
+
 type Props = {
   route: RunLocationPoint[];
   followLatest?: boolean;
@@ -16,19 +34,66 @@ type Props = {
   showMarkers?: boolean;
 };
 
-type ScreenPoint = {
+type Point = {
   x: number;
   y: number;
 };
 
-type DistanceMarker = {
-  point: ScreenPoint;
-  distanceKm: number;
+type ViewState = {
+  zoom: number;
+  panX: number;
+  panY: number;
+  /** live runs: keep the latest position centred while zoomed */
+  follow: boolean;
 };
 
-const PADDING = 42;
-const MIN_ROUTE_RANGE = 0.00008;
+type DistanceMarker = {
+  km: number;
+  base: Point;
+};
+
+
+/*
+ * ========================================
+ * CONSTANTS
+ * ========================================
+ */
+
+const MIN_ZOOM = 0.6;
+const MAX_ZOOM = 24;
+
+/** keep the fitted route away from the edges + the control column */
+const PAD_X = 44;
+const PAD_Y = 30;
+
+/** a stationary track still gets a sensible size */
+const MIN_RANGE_METERS = 40;
+
+const LINE_WIDTH = 5;
 const MARKER_SIZE = 18;
+
+const NICE_METERS = [
+  1, 2, 5, 10, 20, 50, 100, 200, 500,
+  1000, 2000, 5000, 10000, 20000, 50000,
+];
+
+const MARKER_INTERVALS_KM = [
+  0.1, 0.25, 0.5, 1, 2, 5, 10, 25,
+];
+
+const DEFAULT_VIEW: ViewState = {
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  follow: true,
+};
+
+
+/*
+ * ========================================
+ * GEO HELPERS
+ * ========================================
+ */
 
 function isValidPoint(point: RunLocationPoint) {
   return (
@@ -37,12 +102,10 @@ function isValidPoint(point: RunLocationPoint) {
   );
 }
 
-/**
- * Haversine distance in meters.
- */
+/** Haversine distance in meters. */
 function distanceMeters(
   a: RunLocationPoint,
-  b: RunLocationPoint
+  b: RunLocationPoint,
 ) {
   const earthRadius = 6371000;
 
@@ -64,110 +127,97 @@ function distanceMeters(
   return (
     earthRadius *
     2 *
-    Math.atan2(
-      Math.sqrt(value),
-      Math.sqrt(1 - value)
-    )
+    Math.atan2(Math.sqrt(value), Math.sqrt(1 - value))
   );
-}
-
-function totalRouteDistance(
-  route: RunLocationPoint[]
-) {
-  if (route.length < 2) {
-    return 0;
-  }
-
-  let total = 0;
-
-  for (let i = 1; i < route.length; i++) {
-    total += distanceMeters(
-      route[i - 1],
-      route[i]
-    );
-  }
-
-  return total;
 }
 
 function calculateBearing(
   from: RunLocationPoint,
-  to: RunLocationPoint
+  to: RunLocationPoint,
 ) {
-  const lat1 =
-    (from.latitude * Math.PI) / 180;
-
-  const lat2 =
-    (to.latitude * Math.PI) / 180;
+  const lat1 = (from.latitude * Math.PI) / 180;
+  const lat2 = (to.latitude * Math.PI) / 180;
 
   const deltaLon =
-    ((to.longitude - from.longitude) *
-      Math.PI) /
-    180;
+    ((to.longitude - from.longitude) * Math.PI) / 180;
 
-  const y =
-    Math.sin(deltaLon) * Math.cos(lat2);
+  const y = Math.sin(deltaLon) * Math.cos(lat2);
 
   const x =
     Math.cos(lat1) * Math.sin(lat2) -
-    Math.sin(lat1) *
-      Math.cos(lat2) *
-      Math.cos(deltaLon);
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
 
-  const bearing =
-    (Math.atan2(y, x) * 180) / Math.PI;
-
-  return (bearing + 360) % 360;
+  return (
+    (((Math.atan2(y, x) * 180) / Math.PI) + 360) % 360
+  );
 }
 
-function formatDistance(distanceKm: number) {
-  if (distanceKm < 1) {
-    return `${Math.round(distanceKm * 1000)} m`;
+function formatDistance(meters: number) {
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`;
   }
 
-  return `${distanceKm.toFixed(2)} km`;
+  return `${(meters / 1000).toFixed(2)} km`;
 }
 
-function RouteSegment({
+function formatMeters(meters: number) {
+  return meters >= 1000
+    ? `${meters / 1000} km`
+    : `${meters} m`;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+
+/*
+ * ========================================
+ * ROUTE SEGMENT
+ * ========================================
+ */
+
+function Segment({
   from,
   to,
 }: {
-  from: ScreenPoint;
-  to: ScreenPoint;
+  from: Point;
+  to: Point;
 }) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
 
-  const length = Math.sqrt(
-    dx * dx + dy * dy
-  );
+  const length = Math.sqrt(dx * dx + dy * dy);
 
-  if (length < 1) {
+  if (length < 0.5) {
     return null;
   }
 
-  const angle =
-    (Math.atan2(dy, dx) * 180) / Math.PI;
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
 
   return (
     <View
       pointerEvents="none"
       style={[
-        styles.routeSegment,
+        styles.segment,
         {
           left: from.x,
-          top: from.y,
-          width: length,
-          transform: [
-            {
-              rotate: `${angle}deg`,
-            },
-          ],
+          top: from.y - LINE_WIDTH / 2,
+          // small overshoot hides the gap between joints
+          width: length + LINE_WIDTH / 2,
+          transform: [{ rotate: `${angle}deg` }],
         },
       ]}
     />
   );
 }
+
+
+/*
+ * ========================================
+ * COMPONENT
+ * ========================================
+ */
 
 export default function RunningMap({
   route,
@@ -175,772 +225,1215 @@ export default function RunningMap({
   fitRoute = false,
   showMarkers = true,
 }: Props) {
-  const [width, setWidth] = useState(0);
-  const [height, setHeight] = useState(0);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  const [view, setViewState] =
+    useState<ViewState>(DEFAULT_VIEW);
+
+  const viewRef = useRef<ViewState>(DEFAULT_VIEW);
+
+  const width = size.width;
+  const height = size.height;
+
+  const centerX = width / 2;
+  const centerY = height / 2;
 
   const validRoute = useMemo(
     () => route.filter(isValidPoint),
-    [route]
+    [route],
   );
-
-  const routeDistanceMeters = useMemo(
-    () => totalRouteDistance(validRoute),
-    [validRoute]
-  );
-
-  const routeDistanceKm =
-    routeDistanceMeters / 1000;
 
   /*
-   * Convert GPS coordinates into screen coordinates.
+   * Cumulative distance along the route (meters).
+   */
+  const cumulative = useMemo(() => {
+    const values: number[] = [];
+
+    let total = 0;
+
+    for (let i = 0; i < validRoute.length; i += 1) {
+      if (i > 0) {
+        total += distanceMeters(
+          validRoute[i - 1],
+          validRoute[i],
+        );
+      }
+
+      values.push(total);
+    }
+
+    return values;
+  }, [validRoute]);
+
+  const routeMeters =
+    cumulative.length > 0
+      ? cumulative[cumulative.length - 1]
+      : 0;
+
+
+  /*
+   * ======================================
+   * PROJECTION
    *
-   * This intentionally does NOT use a map provider.
-   * The GPS route itself is the visualization.
+   * lat/lon → meters (with latitude
+   * correction) → fitted to the viewport.
+   * The route's bounding box is always
+   * centred in the viewport at zoom 1.
+   * ======================================
    */
-  const screenPoints = useMemo<ScreenPoint[]>(
-    () => {
-      if (
-        validRoute.length === 0 ||
-        width <= 0 ||
-        height <= 0
-      ) {
-        return [];
-      }
 
-      let minLat = validRoute[0].latitude;
-      let maxLat = validRoute[0].latitude;
+  const geo = useMemo(() => {
+    if (
+      validRoute.length === 0 ||
+      width <= 0 ||
+      height <= 0
+    ) {
+      return null;
+    }
 
-      let minLon = validRoute[0].longitude;
-      let maxLon = validRoute[0].longitude;
+    let minLat = validRoute[0].latitude;
+    let maxLat = minLat;
+    let minLon = validRoute[0].longitude;
+    let maxLon = minLon;
 
-      for (const point of validRoute) {
-        minLat = Math.min(
-          minLat,
-          point.latitude
-        );
+    for (const point of validRoute) {
+      minLat = Math.min(minLat, point.latitude);
+      maxLat = Math.max(maxLat, point.latitude);
+      minLon = Math.min(minLon, point.longitude);
+      maxLon = Math.max(maxLon, point.longitude);
+    }
 
-        maxLat = Math.max(
-          maxLat,
-          point.latitude
-        );
+    const latMid = (minLat + maxLat) / 2;
+    const lonMid = (minLon + maxLon) / 2;
 
-        minLon = Math.min(
-          minLon,
-          point.longitude
-        );
+    const lonFactor =
+      111320 * Math.cos((latMid * Math.PI) / 180);
 
-        maxLon = Math.max(
-          maxLon,
-          point.longitude
-        );
-      }
+    const latFactor = 110574;
 
-      let latRange = maxLat - minLat;
-      let lonRange = maxLon - minLon;
+    const meters = validRoute.map(point => ({
+      x: (point.longitude - lonMid) * lonFactor,
+      y: (latMid - point.latitude) * latFactor,
+    }));
 
-      /*
-       * Prevent a stationary/very short GPS track
-       * from collapsing into one pixel.
-       */
-      if (latRange < MIN_ROUTE_RANGE) {
-        const center =
-          (minLat + maxLat) / 2;
+    let minX = meters[0].x;
+    let maxX = minX;
+    let minY = meters[0].y;
+    let maxY = minY;
 
-        latRange = MIN_ROUTE_RANGE;
+    for (const point of meters) {
+      minX = Math.min(minX, point.x);
+      maxX = Math.max(maxX, point.x);
+      minY = Math.min(minY, point.y);
+      maxY = Math.max(maxY, point.y);
+    }
 
-        minLat =
-          center - MIN_ROUTE_RANGE / 2;
+    const rangeX = Math.max(maxX - minX, MIN_RANGE_METERS);
+    const rangeY = Math.max(maxY - minY, MIN_RANGE_METERS);
 
-        maxLat =
-          center + MIN_ROUTE_RANGE / 2;
-      }
+    const midX = (minX + maxX) / 2;
+    const midY = (minY + maxY) / 2;
 
-      if (lonRange < MIN_ROUTE_RANGE) {
-        const center =
-          (minLon + maxLon) / 2;
+    const scale = Math.max(
+      0.0001,
+      Math.min(
+        (width - PAD_X * 2) / rangeX,
+        (height - PAD_Y * 2) / rangeY,
+      ),
+    );
 
-        lonRange = MIN_ROUTE_RANGE;
+    const base: Point[] = meters.map(point => ({
+      x: width / 2 + (point.x - midX) * scale,
+      y: height / 2 + (point.y - midY) * scale,
+    }));
 
-        minLon =
-          center - MIN_ROUTE_RANGE / 2;
+    return {
+      base,
+      /** pixels per meter at zoom 1 */
+      scale,
+      routeWidth: rangeX * scale,
+      routeHeight: rangeY * scale,
+    };
+  }, [validRoute, width, height]);
 
-        maxLon =
-          center + MIN_ROUTE_RANGE / 2;
-      }
-
-      const availableWidth = Math.max(
-        1,
-        width - PADDING * 2
-      );
-
-      const availableHeight = Math.max(
-        1,
-        height - PADDING * 2
-      );
-
-      const scaleX =
-        availableWidth / lonRange;
-
-      const scaleY =
-        availableHeight / latRange;
-
-      /*
-       * Keep geographic proportions.
-       */
-      const scale = Math.min(
-        scaleX,
-        scaleY
-      );
-
-      const renderedWidth =
-        lonRange * scale;
-
-      const renderedHeight =
-        latRange * scale;
-
-      const offsetX =
-        (width - renderedWidth) / 2;
-
-      const offsetY =
-        (height - renderedHeight) / 2;
-
-      return validRoute.map((point) => ({
-        x:
-          offsetX +
-          (point.longitude - minLon) *
-            scale,
-
-        y:
-          offsetY +
-          (maxLat - point.latitude) *
-            scale,
-      }));
-    },
-    [validRoute, width, height]
-  );
 
   /*
-   * Create distance markers approximately every 0.5 km.
+   * ======================================
+   * EFFECTIVE VIEW
+   * (live runs follow the latest position
+   *  while zoomed in)
+   * ======================================
    */
-  const distanceMarkers = useMemo<
-    DistanceMarker[]
-  >(() => {
-    if (
-      validRoute.length < 2 ||
-      screenPoints.length < 2
-    ) {
+
+  const latestBase =
+    geo && geo.base.length > 0
+      ? geo.base[geo.base.length - 1]
+      : null;
+
+  const following =
+    followLatest && view.follow && latestBase !== null;
+
+  const followWeight = clamp(
+    (view.zoom - 1) / 1.5,
+    0,
+    1,
+  );
+
+  const pan: Point =
+    following && latestBase
+      ? {
+          x:
+            -(latestBase.x - centerX) *
+            view.zoom *
+            followWeight,
+          y:
+            -(latestBase.y - centerY) *
+            view.zoom *
+            followWeight,
+        }
+      : { x: view.panX, y: view.panY };
+
+  const panRef = useRef<Point>({ x: 0, y: 0 });
+  const metricsRef = useRef({
+    width: 0,
+    height: 0,
+    routeWidth: 0,
+    routeHeight: 0,
+  });
+
+  panRef.current = pan;
+
+  metricsRef.current = {
+    width,
+    height,
+    routeWidth: geo?.routeWidth ?? 0,
+    routeHeight: geo?.routeHeight ?? 0,
+  };
+
+  const toScreen = (point: Point): Point => ({
+    x: centerX + pan.x + (point.x - centerX) * view.zoom,
+    y: centerY + pan.y + (point.y - centerY) * view.zoom,
+  });
+
+  const pixelsPerMeter = (geo?.scale ?? 1) * view.zoom;
+
+
+  /*
+   * ======================================
+   * GESTURES
+   * ======================================
+   */
+
+  function commit(next: ViewState) {
+    viewRef.current = next;
+    setViewState(next);
+  }
+
+  function clampPan(
+    zoom: number,
+    x: number,
+    y: number,
+  ): Point {
+    if (zoom <= 1.001) {
+      return { x: 0, y: 0 };
+    }
+
+    const m = metricsRef.current;
+
+    const maxX =
+      (m.routeWidth * zoom) / 2 + m.width / 2 - 48;
+
+    const maxY =
+      (m.routeHeight * zoom) / 2 + m.height / 2 - 48;
+
+    return {
+      x: clamp(x, -Math.max(0, maxX), Math.max(0, maxX)),
+      y: clamp(y, -Math.max(0, maxY), Math.max(0, maxY)),
+    };
+  }
+
+  /** keep the point under `focal` fixed while zooming */
+  function panForZoom(
+    focal: Point,
+    focalStart: Point,
+    panStart: Point,
+    zoomStart: number,
+    zoomNext: number,
+  ): Point {
+    const m = metricsRef.current;
+
+    const cx = m.width / 2;
+    const cy = m.height / 2;
+
+    const ratio = zoomNext / zoomStart;
+
+    return {
+      x:
+        focal.x -
+        cx -
+        (focalStart.x - cx - panStart.x) * ratio,
+      y:
+        focal.y -
+        cy -
+        (focalStart.y - cy - panStart.y) * ratio,
+    };
+  }
+
+  function zoomBy(factor: number) {
+    const current = viewRef.current;
+
+    const zoom = clamp(
+      current.zoom * factor,
+      MIN_ZOOM,
+      MAX_ZOOM,
+    );
+
+    const eff = panRef.current;
+
+    const ratio = zoom / current.zoom;
+
+    const next = clampPan(
+      zoom,
+      eff.x * ratio,
+      eff.y * ratio,
+    );
+
+    commit({
+      zoom,
+      panX: next.x,
+      panY: next.y,
+      follow: current.follow,
+    });
+  }
+
+  function resetView() {
+    commit(DEFAULT_VIEW);
+  }
+
+  const gesture = useRef({
+    count: 0,
+    panStart: { x: 0, y: 0 },
+    zoomStart: 1,
+    distStart: 1,
+    focalStart: { x: 0, y: 0 },
+    moved: false,
+    startTime: 0,
+    lastTap: { time: 0, x: 0, y: 0 },
+  }).current;
+
+  function readTouches(event: GestureResponderEvent) {
+    const touches = event.nativeEvent.touches;
+
+    if (touches.length >= 2) {
+      const a = touches[0];
+      const b = touches[1];
+
+      return {
+        count: 2,
+        x: (a.locationX + b.locationX) / 2,
+        y: (a.locationY + b.locationY) / 2,
+        dist: Math.max(
+          1,
+          Math.hypot(
+            a.locationX - b.locationX,
+            a.locationY - b.locationY,
+          ),
+        ),
+      };
+    }
+
+    if (touches.length === 1) {
+      return {
+        count: 1,
+        x: touches[0].locationX,
+        y: touches[0].locationY,
+        dist: 1,
+      };
+    }
+
+    return { count: 0, x: 0, y: 0, dist: 1 };
+  }
+
+  function beginGesture(
+    info: ReturnType<typeof readTouches>,
+  ) {
+    gesture.count = info.count;
+    gesture.panStart = { ...panRef.current };
+    gesture.zoomStart = viewRef.current.zoom;
+    gesture.distStart = info.dist;
+    gesture.focalStart = { x: info.x, y: info.y };
+  }
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+
+      onMoveShouldSetPanResponder: event =>
+        event.nativeEvent.touches.length >= 2 ||
+        viewRef.current.zoom > 1.01,
+
+      // At 1x a single finger may hand over to the page
+      // scroll; when zoomed / pinching the map keeps the touch.
+      onPanResponderTerminationRequest: event =>
+        viewRef.current.zoom <= 1.01 &&
+        event.nativeEvent.touches.length < 2,
+
+      onPanResponderGrant: event => {
+        gesture.moved = false;
+        gesture.startTime = Date.now();
+
+        beginGesture(readTouches(event));
+      },
+
+      onPanResponderMove: event => {
+        const info = readTouches(event);
+
+        if (info.count === 0) {
+          return;
+        }
+
+        if (info.count !== gesture.count) {
+          beginGesture(info);
+        }
+
+        const current = viewRef.current;
+
+        const zoom =
+          info.count === 2
+            ? clamp(
+                gesture.zoomStart *
+                  (info.dist / gesture.distStart),
+                MIN_ZOOM,
+                MAX_ZOOM,
+              )
+            : gesture.zoomStart;
+
+        const movedEnough =
+          info.count === 2 ||
+          Math.hypot(
+            info.x - gesture.focalStart.x,
+            info.y - gesture.focalStart.y,
+          ) > 6;
+
+        if (!movedEnough && !gesture.moved) {
+          return;
+        }
+
+        gesture.moved = true;
+
+        const target = panForZoom(
+          { x: info.x, y: info.y },
+          gesture.focalStart,
+          gesture.panStart,
+          gesture.zoomStart,
+          zoom,
+        );
+
+        const nextPan = clampPan(zoom, target.x, target.y);
+
+        commit({
+          zoom,
+          panX: nextPan.x,
+          panY: nextPan.y,
+          // pinching keeps following; dragging the map takes control
+          follow:
+            info.count === 2
+              ? current.follow
+              : zoom > 1.01
+                ? false
+                : current.follow,
+        });
+      },
+
+      onPanResponderRelease: event => {
+        const now = Date.now();
+
+        const wasTap =
+          !gesture.moved && now - gesture.startTime < 260;
+
+        if (!wasTap) {
+          return;
+        }
+
+        const x = event.nativeEvent.locationX;
+        const y = event.nativeEvent.locationY;
+
+        const last = gesture.lastTap;
+
+        const isDoubleTap =
+          now - last.time < 300 &&
+          Math.hypot(x - last.x, y - last.y) < 36;
+
+        gesture.lastTap = { time: now, x, y };
+
+        if (!isDoubleTap) {
+          return;
+        }
+
+        gesture.lastTap = { time: 0, x: 0, y: 0 };
+
+        const current = viewRef.current;
+
+        if (current.zoom > 1.5) {
+          commit(DEFAULT_VIEW);
+          return;
+        }
+
+        const zoom = clamp(
+          Math.max(current.zoom * 2.5, 2.5),
+          MIN_ZOOM,
+          MAX_ZOOM,
+        );
+
+        const nextPan = panForZoom(
+          { x, y },
+          { x, y },
+          panRef.current,
+          current.zoom,
+          zoom,
+        );
+
+        const clamped = clampPan(
+          zoom,
+          nextPan.x,
+          nextPan.y,
+        );
+
+        commit({
+          zoom,
+          panX: clamped.x,
+          panY: clamped.y,
+          follow: false,
+        });
+      },
+    }),
+  ).current;
+
+
+  /*
+   * Reset the camera when a run starts / ends
+   */
+
+  useEffect(() => {
+    commit(DEFAULT_VIEW);
+  }, [followLatest]);
+
+
+  /*
+   * Live pulse
+   */
+
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!followLatest) {
+      pulse.setValue(0);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.timing(pulse, {
+        toValue: 1,
+        duration: 1500,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    );
+
+    loop.start();
+
+    return () => loop.stop();
+  }, [followLatest, pulse]);
+
+
+  /*
+   * ======================================
+   * DRAWING DATA
+   * ======================================
+   */
+
+  // simplify to ~2.5px, then cull what is off screen
+  const segments = useMemo(() => {
+    if (!geo) {
       return [];
     }
 
-    const markers: DistanceMarker[] = [];
+    const projected = geo.base.map(point => ({
+      x: centerX + pan.x + (point.x - centerX) * view.zoom,
+      y: centerY + pan.y + (point.y - centerY) * view.zoom,
+    }));
 
-    let accumulated = 0;
-    let nextMarker = 0.5;
+    const kept: Point[] = [];
 
-    for (let i = 1; i < validRoute.length; i++) {
-      const segmentDistance =
-        distanceMeters(
-          validRoute[i - 1],
-          validRoute[i]
-        );
+    let lastKept: Point | null = null;
 
-      const previousDistance =
-        accumulated;
+    for (let i = 0; i < projected.length; i += 1) {
+      const point = projected[i];
 
-      accumulated +=
-        segmentDistance / 1000;
-
-      while (
-        nextMarker <= accumulated &&
-        segmentDistance > 0
+      if (
+        lastKept === null ||
+        i === projected.length - 1 ||
+        Math.hypot(
+          point.x - lastKept.x,
+          point.y - lastKept.y,
+        ) >= 2.5
       ) {
-        const segmentStart =
-          previousDistance;
-
-        const progress =
-          (nextMarker - segmentStart) /
-          (accumulated - segmentStart);
-
-        const from =
-          screenPoints[i - 1];
-
-        const to =
-          screenPoints[i];
-
-        if (from && to) {
-          markers.push({
-            distanceKm: nextMarker,
-            point: {
-              x:
-                from.x +
-                (to.x - from.x) *
-                  progress,
-
-              y:
-                from.y +
-                (to.y - from.y) *
-                  progress,
-            },
-          });
-        }
-
-        nextMarker += 0.5;
+        kept.push(point);
+        lastKept = point;
       }
     }
 
-    return markers;
-  }, [validRoute, screenPoints]);
+    const margin = 30;
 
-  const startPoint =
-    screenPoints.length > 0
-      ? screenPoints[0]
-      : null;
+    const result: { key: string; from: Point; to: Point }[] =
+      [];
 
-  const latestPoint =
-    screenPoints.length > 0
-      ? screenPoints[
-          screenPoints.length - 1
-        ]
-      : null;
+    for (let i = 1; i < kept.length; i += 1) {
+      const a = kept[i - 1];
+      const b = kept[i];
 
-  const previousPoint =
-    screenPoints.length > 1
-      ? screenPoints[
-          screenPoints.length - 2
-        ]
-      : null;
+      const outside =
+        (a.x < -margin && b.x < -margin) ||
+        (a.x > width + margin && b.x > width + margin) ||
+        (a.y < -margin && b.y < -margin) ||
+        (a.y > height + margin && b.y > height + margin);
+
+      if (!outside) {
+        result.push({ key: `s-${i}`, from: a, to: b });
+      }
+    }
+
+    return result;
+  }, [
+    geo,
+    view.zoom,
+    pan.x,
+    pan.y,
+    centerX,
+    centerY,
+    width,
+    height,
+  ]);
+
+  // marker spacing adapts to zoom
+  const markerInterval =
+    MARKER_INTERVALS_KM.find(
+      interval =>
+        interval * 1000 * pixelsPerMeter >= 70,
+    ) ??
+    MARKER_INTERVALS_KM[MARKER_INTERVALS_KM.length - 1];
+
+  const markers = useMemo<DistanceMarker[]>(() => {
+    if (!geo || geo.base.length < 2) {
+      return [];
+    }
+
+    const result: DistanceMarker[] = [];
+
+    const total = cumulative[cumulative.length - 1];
+
+    let segment = 1;
+
+    for (
+      let km = markerInterval;
+      km * 1000 <= total && result.length < 60;
+      km += markerInterval
+    ) {
+      const target = km * 1000;
+
+      while (
+        segment < cumulative.length - 1 &&
+        cumulative[segment] < target
+      ) {
+        segment += 1;
+      }
+
+      const startDistance = cumulative[segment - 1];
+      const endDistance = cumulative[segment];
+
+      const span = endDistance - startDistance;
+
+      const progress =
+        span > 0 ? (target - startDistance) / span : 0;
+
+      const from = geo.base[segment - 1];
+      const to = geo.base[segment];
+
+      result.push({
+        km: Number(km.toFixed(2)),
+        base: {
+          x: from.x + (to.x - from.x) * progress,
+          y: from.y + (to.y - from.y) * progress,
+        },
+      });
+    }
+
+    return result;
+  }, [geo, cumulative, markerInterval]);
+
+  const startScreen =
+    geo && geo.base.length > 0 ? toScreen(geo.base[0]) : null;
+
+  const latestScreen = latestBase ? toScreen(latestBase) : null;
+
+
+  /*
+   * Heading from the last couple of meters of movement
+   */
+
+  const heading = useMemo(() => {
+    if (validRoute.length < 2) {
+      return 0;
+    }
+
+    const latest = validRoute[validRoute.length - 1];
+
+    for (
+      let i = validRoute.length - 2;
+      i >= Math.max(0, validRoute.length - 12);
+      i -= 1
+    ) {
+      if (distanceMeters(validRoute[i], latest) >= 3) {
+        return calculateBearing(validRoute[i], latest);
+      }
+    }
+
+    return calculateBearing(
+      validRoute[validRoute.length - 2],
+      latest,
+    );
+  }, [validRoute]);
 
   const currentGps =
     validRoute.length > 0
-      ? validRoute[
-          validRoute.length - 1
-        ]
+      ? validRoute[validRoute.length - 1]
       : null;
 
-  const previousGps =
-    validRoute.length > 1
-      ? validRoute[
-          validRoute.length - 2
-        ]
-      : null;
-
-  const heading =
-    currentGps && previousGps
-      ? calculateBearing(
-          previousGps,
-          currentGps
-        )
-      : 0;
-
-  const handleLayout = (
-    event: LayoutChangeEvent
-  ) => {
-    const {
-      width: layoutWidth,
-      height: layoutHeight,
-    } = event.nativeEvent.layout;
-
-    setWidth(layoutWidth);
-    setHeight(layoutHeight);
-  };
 
   /*
-   * This state is intentionally simple.
-   * It forces the visual layer to refresh whenever
-   * new GPS points arrive.
+   * Scale grid (one cell = a round number of meters)
    */
-  const [routeVersion, setRouteVersion] =
-    useState(0);
 
-  useEffect(() => {
-    setRouteVersion(
-      (value) => value + 1
+  const gridMeters =
+    NICE_METERS.find(
+      meters => meters * pixelsPerMeter >= 42,
+    ) ?? NICE_METERS[NICE_METERS.length - 1];
+
+  const gridPixels = gridMeters * pixelsPerMeter;
+
+  const gridLines = useMemo(() => {
+    if (width <= 0 || height <= 0 || gridPixels < 8) {
+      return { vertical: [] as number[], horizontal: [] as number[] };
+    }
+
+    const originX = centerX + pan.x;
+    const originY = centerY + pan.y;
+
+    const vertical: number[] = [];
+    const horizontal: number[] = [];
+
+    const startX =
+      originX - Math.ceil(originX / gridPixels) * gridPixels;
+
+    for (
+      let x = startX;
+      x <= width && vertical.length < 40;
+      x += gridPixels
+    ) {
+      if (x >= 0) {
+        vertical.push(x);
+      }
+    }
+
+    const startY =
+      originY - Math.ceil(originY / gridPixels) * gridPixels;
+
+    for (
+      let y = startY;
+      y <= height && horizontal.length < 40;
+      y += gridPixels
+    ) {
+      if (y >= 0) {
+        horizontal.push(y);
+      }
+    }
+
+    return { vertical, horizontal };
+  }, [width, height, gridPixels, centerX, centerY, pan.x, pan.y]);
+
+
+  /*
+   * Status
+   */
+
+  const hasRoute = validRoute.length > 0;
+
+  const statusLabel = !hasRoute
+    ? 'SEARCHING'
+    : followLatest
+      ? 'GPS LIVE'
+      : 'SAVED';
+
+  const statusLive = hasRoute && followLatest;
+
+  const cameraMoved =
+    Math.abs(view.zoom - 1) > 0.02 ||
+    Math.abs(view.panX) > 1 ||
+    Math.abs(view.panY) > 1 ||
+    (followLatest && !view.follow);
+
+  const handleViewportLayout = (
+    event: LayoutChangeEvent,
+  ) => {
+    const { width: w, height: h } = event.nativeEvent.layout;
+
+    setSize(previous =>
+      previous.width === w && previous.height === h
+        ? previous
+        : { width: w, height: h },
     );
-  }, [route.length]);
+  };
 
-  const isPaused =
-    validRoute.length > 0 &&
-    !followLatest;
-
-  const routeLabel =
-    routeDistanceMeters < 1
-      ? '0 m'
-      : formatDistance(routeDistanceKm);
+  const inView = (point: Point, margin = 14) =>
+    point.x >= -margin &&
+    point.x <= width + margin &&
+    point.y >= -margin &&
+    point.y <= height + margin;
 
   return (
-    <View
-      style={styles.container}
-      onLayout={handleLayout}
-    >
-      {/* =========================
-          BACKGROUND
-         ========================= */}
-
-      <View
-        pointerEvents="none"
-        style={styles.background}
-      >
-        <View style={styles.gridVertical25} />
-        <View style={styles.gridVertical50} />
-        <View style={styles.gridVertical75} />
-
-        <View style={styles.gridHorizontal25} />
-        <View style={styles.gridHorizontal50} />
-        <View style={styles.gridHorizontal75} />
-
-        <View style={styles.centerCrossHorizontal} />
-        <View style={styles.centerCrossVertical} />
-      </View>
+    <View style={styles.container}>
 
       {/* =========================
-          TOP HEADER
+          HEADER
          ========================= */}
 
-      <View
-        pointerEvents="none"
-        style={styles.topHeader}
-      >
+      <View style={styles.header}>
+
         <View>
-          <Text style={styles.routeTitle}>
-            RUN ROUTE
-          </Text>
+          <Text style={styles.title}>RUN ROUTE</Text>
 
-          <Text style={styles.routeSubtitle}>
-            GPS TRACK
+          <Text style={styles.subtitle}>
+            {fitRoute ? 'FULL TRACK' : 'GPS TRACK'}
           </Text>
         </View>
 
         <View
           style={[
-            styles.statusBadge,
-            isPaused
-              ? styles.statusPaused
-              : styles.statusLive,
+            styles.status,
+            statusLive
+              ? styles.statusLive
+              : styles.statusIdle,
           ]}
         >
           <View
             style={[
               styles.statusDot,
-              isPaused
-                ? styles.statusDotPaused
-                : styles.statusDotLive,
+              statusLive
+                ? styles.statusDotLive
+                : styles.statusDotIdle,
             ]}
           />
 
           <Text
             style={[
               styles.statusText,
-              isPaused
-                ? styles.statusTextPaused
-                : styles.statusTextLive,
+              statusLive
+                ? styles.statusTextLive
+                : styles.statusTextIdle,
             ]}
           >
-            {isPaused
-              ? 'PAUSED'
-              : validRoute.length > 0
-                ? 'GPS LIVE'
-                : 'SEARCHING'}
+            {statusLabel}
           </Text>
         </View>
+
       </View>
 
+
       {/* =========================
-          ROUTE LAYER
+          MAP VIEWPORT
+          (everything drawn here is clipped, so the
+           route can never slide under the text above
+           or below it)
          ========================= */}
 
       <View
-        key={routeVersion}
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
+        style={styles.viewport}
+        onLayout={handleViewportLayout}
+        {...panResponder.panHandlers}
       >
-        {/* Route segments */}
 
-        {screenPoints.map(
-          (point, index) => {
-            if (index === 0) {
+        {/* Grid */}
+
+        <View
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+        >
+          {gridLines.vertical.map(x => (
+            <View
+              key={`gv-${Math.round(x * 10)}`}
+              style={[styles.gridV, { left: x }]}
+            />
+          ))}
+
+          {gridLines.horizontal.map(y => (
+            <View
+              key={`gh-${Math.round(y * 10)}`}
+              style={[styles.gridH, { top: y }]}
+            />
+          ))}
+        </View>
+
+
+        {/* Route */}
+
+        <View
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+        >
+
+          {segments.map(segment => (
+            <Segment
+              key={segment.key}
+              from={segment.from}
+              to={segment.to}
+            />
+          ))}
+
+          {markers.map(marker => {
+            const point = toScreen(marker.base);
+
+            if (!inView(point)) {
               return null;
             }
 
             return (
-              <RouteSegment
-                key={`route-${index}`}
-                from={
-                  screenPoints[index - 1]
-                }
-                to={point}
-              />
-            );
-          }
-        )}
-
-        {/* Distance markers */}
-
-        {distanceMarkers.map(
-          (marker) => (
-            <View
-              key={`distance-${marker.distanceKm}`}
-              style={[
-                styles.distanceMarker,
-                {
-                  left:
-                    marker.point.x - 13,
-                  top:
-                    marker.point.y - 13,
-                },
-              ]}
-            >
-              <Text
-                style={
-                  styles.distanceMarkerText
-                }
-              >
-                {marker.distanceKm}
-              </Text>
-            </View>
-          )
-        )}
-
-        {/* Start marker */}
-
-        {showMarkers &&
-          startPoint && (
-            <View
-              style={[
-                styles.startMarker,
-                {
-                  left:
-                    startPoint.x -
-                    MARKER_SIZE / 2,
-                  top:
-                    startPoint.y -
-                    MARKER_SIZE / 2,
-                },
-              ]}
-            >
-              <Text
-                style={styles.startMarkerText}
-              >
-                S
-              </Text>
-            </View>
-          )}
-
-        {/* Current position */}
-
-        {latestPoint && (
-          <>
-            {followLatest && (
               <View
+                key={`m-${marker.km}`}
                 style={[
-                  styles.positionPulseOuter,
+                  styles.distanceMarker,
                   {
-                    left:
-                      latestPoint.x - 19,
-                    top:
-                      latestPoint.y - 19,
+                    left: point.x - 14,
+                    top: point.y - 14,
                   },
                 ]}
               >
-                <View
-                  style={
-                    styles.positionPulseInner
-                  }
-                />
+                <Text style={styles.distanceMarkerText}>
+                  {marker.km}
+                </Text>
+              </View>
+            );
+          })}
+
+          {showMarkers &&
+            startScreen &&
+            inView(startScreen) && (
+              <View
+                style={[
+                  styles.startMarker,
+                  {
+                    left: startScreen.x - MARKER_SIZE / 2,
+                    top: startScreen.y - MARKER_SIZE / 2,
+                  },
+                ]}
+              >
+                <Text style={styles.startMarkerText}>S</Text>
               </View>
             )}
 
-            <View
-              style={[
-                styles.currentPosition,
-                {
-                  left:
-                    latestPoint.x -
-                    MARKER_SIZE / 2,
-                  top:
-                    latestPoint.y -
-                    MARKER_SIZE / 2,
-                },
-              ]}
-            />
-
-            {/* Direction arrow */}
-
-            {previousPoint &&
-              followLatest && (
-                <View
-                  style={[
-                    styles.directionArrow,
-                    {
-                      left:
-                        latestPoint.x - 9,
-                      top:
-                        latestPoint.y - 9,
-                      transform: [
-                        {
-                          rotate: `${heading}deg`,
-                        },
-                      ],
-                    },
-                  ]}
-                >
+          {latestScreen && inView(latestScreen, 30) && (
+            <>
+              {followLatest ? (
+                <>
                   <View
-                    style={
-                      styles.arrowTriangle
-                    }
+                    style={[
+                      styles.pulseHolder,
+                      {
+                        left: latestScreen.x - 20,
+                        top: latestScreen.y - 20,
+                      },
+                    ]}
+                  >
+                    <Animated.View
+                      style={[
+                        styles.pulse,
+                        {
+                          opacity: pulse.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.55, 0],
+                          }),
+                          transform: [
+                            {
+                              scale: pulse.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0.5, 1.5],
+                              }),
+                            },
+                          ],
+                        },
+                      ]}
+                    />
+                  </View>
+
+                  <View
+                    style={[
+                      styles.currentPosition,
+                      {
+                        left: latestScreen.x - MARKER_SIZE / 2,
+                        top: latestScreen.y - MARKER_SIZE / 2,
+                      },
+                    ]}
                   />
-                </View>
+
+                  {validRoute.length > 1 && (
+                    <View
+                      style={[
+                        styles.directionArrow,
+                        {
+                          left: latestScreen.x - 9,
+                          top: latestScreen.y - 9,
+                          transform: [
+                            { rotate: `${heading}deg` },
+                          ],
+                        },
+                      ]}
+                    >
+                      <View style={styles.arrowTriangle} />
+                    </View>
+                  )}
+                </>
+              ) : (
+                showMarkers && (
+                  <View
+                    style={[
+                      styles.finishMarker,
+                      {
+                        left: latestScreen.x - MARKER_SIZE / 2,
+                        top: latestScreen.y - MARKER_SIZE / 2,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.finishMarkerText}>
+                      F
+                    </Text>
+                  </View>
+                )
               )}
-          </>
+            </>
+          )}
+
+        </View>
+
+
+        {/* Empty state */}
+
+        {!hasRoute && (
+          <View
+            pointerEvents="none"
+            style={styles.emptyState}
+          >
+            <View style={styles.targetIcon}>
+              <View style={styles.targetOuter} />
+              <View style={styles.targetMiddle} />
+              <View style={styles.targetCenter} />
+            </View>
+
+            <Text style={styles.emptyTitle}>
+              WAITING FOR GPS
+            </Text>
+
+            <Text style={styles.emptySubtitle}>
+              Move outdoors to build your route
+            </Text>
+          </View>
         )}
+
+
+        {/* Zoom controls */}
+
+        {hasRoute && (
+          <View
+            pointerEvents="box-none"
+            style={styles.controls}
+          >
+            <Pressable
+              accessibilityLabel="Zoom in"
+              onPress={() => zoomBy(1.6)}
+              style={({ pressed }) => [
+                styles.controlButton,
+                pressed && styles.controlPressed,
+              ]}
+            >
+              <Text style={styles.controlText}>+</Text>
+            </Pressable>
+
+            <Text
+              pointerEvents="none"
+              style={styles.zoomLabel}
+            >
+              {view.zoom.toFixed(1)}X
+            </Text>
+
+            <Pressable
+              accessibilityLabel="Zoom out"
+              onPress={() => zoomBy(1 / 1.6)}
+              style={({ pressed }) => [
+                styles.controlButton,
+                pressed && styles.controlPressed,
+              ]}
+            >
+              <Text style={styles.controlText}>−</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityLabel="Fit route"
+              onPress={resetView}
+              style={({ pressed }) => [
+                styles.controlButton,
+                styles.fitButton,
+                cameraMoved && styles.fitButtonActive,
+                pressed && styles.controlPressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.fitText,
+                  cameraMoved && styles.fitTextActive,
+                ]}
+              >
+                FIT
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
       </View>
 
-      {/* =========================
-          EMPTY STATE
-         ========================= */}
-
-      {validRoute.length === 0 && (
-        <View
-          pointerEvents="none"
-          style={styles.emptyState}
-        >
-          <View style={styles.targetIcon}>
-            <View
-              style={styles.targetOuter}
-            />
-
-            <View
-              style={styles.targetMiddle}
-            />
-
-            <View
-              style={styles.targetCenter}
-            />
-          </View>
-
-          <Text style={styles.emptyTitle}>
-            WAITING FOR GPS
-          </Text>
-
-          <Text style={styles.emptySubtitle}>
-            Move outdoors to build your route
-          </Text>
-        </View>
-      )}
-
-      {/* =========================
-          TOP LEFT DISTANCE
-         ========================= */}
-
-      {validRoute.length > 0 && (
-        <View
-          pointerEvents="none"
-          style={styles.distanceCard}
-        >
-          <Text style={styles.distanceLabel}>
-            DISTANCE
-          </Text>
-
-          <Text style={styles.distanceValue}>
-            {routeLabel}
-          </Text>
-        </View>
-      )}
 
       {/* =========================
           BOTTOM INFO
          ========================= */}
 
-      {validRoute.length > 0 && (
-        <View
-          pointerEvents="none"
-          style={styles.bottomPanel}
-        >
-          <View style={styles.bottomMetric}>
-            <Text style={styles.metricLabel}>
-              POINTS
-            </Text>
+      <View style={styles.bottomPanel}>
 
-            <Text style={styles.metricValue}>
-              {validRoute.length}
-            </Text>
-          </View>
+        <Metric
+          label="DIST"
+          value={hasRoute ? formatDistance(routeMeters) : '--'}
+          highlight
+        />
 
-          <View style={styles.metricDivider} />
+        <View style={styles.metricDivider} />
 
-          <View style={styles.bottomMetric}>
-            <Text style={styles.metricLabel}>
-              ROUTE
-            </Text>
+        <Metric
+          label="POINTS"
+          value={String(validRoute.length)}
+        />
 
-            <Text style={styles.metricValue}>
-              {fitRoute
-                ? 'FULL'
-                : followLatest
-                  ? 'LIVE'
-                  : 'SAVED'}
-            </Text>
-          </View>
+        <View style={styles.metricDivider} />
 
-          <View style={styles.metricDivider} />
+        <Metric
+          label="GPS"
+          value={
+            currentGps?.accuracy
+              ? `±${Math.round(currentGps.accuracy)}m`
+              : '--'
+          }
+        />
 
-          <View style={styles.bottomMetric}>
-            <Text style={styles.metricLabel}>
-              GPS
-            </Text>
+        <View style={styles.metricDivider} />
 
-            <Text style={styles.metricValue}>
-              {currentGps?.accuracy
-                ? `±${Math.round(
-                    currentGps.accuracy
-                  )}m`
-                : '--'}
-            </Text>
-          </View>
-        </View>
-      )}
+        <Metric
+          label="GRID"
+          value={hasRoute ? formatMeters(gridMeters) : '--'}
+        />
 
-      {/* =========================
-          SCALE INDICATOR
-         ========================= */}
+      </View>
 
-      {validRoute.length > 0 && (
-        <View
-          pointerEvents="none"
-          style={styles.scaleContainer}
-        >
-          <View style={styles.scaleLine} />
-
-          <Text style={styles.scaleText}>
-            ~500 m
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
 
+
+/*
+ * ========================================
+ * METRIC
+ * ========================================
+ */
+
+function Metric({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricLabel}>{label}</Text>
+
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.metricValue,
+          highlight && styles.metricValueHighlight,
+        ]}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+
+/*
+ * ========================================
+ * STYLES
+ * ========================================
+ */
+
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
-    minHeight: 280,
+    minHeight: 300,
     overflow: 'hidden',
-    position: 'relative',
     backgroundColor: '#07100B',
     borderWidth: 1,
     borderColor: '#1C3325',
   },
 
-  background: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#07100B',
-  },
 
-  gridVertical25: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: '25%',
-    width: 1,
-    backgroundColor: '#12261A',
-  },
+  /* header */
 
-  gridVertical50: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: '50%',
-    width: 1,
-    backgroundColor: '#172E20',
-  },
-
-  gridVertical75: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: '75%',
-    width: 1,
-    backgroundColor: '#12261A',
-  },
-
-  gridHorizontal25: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '25%',
-    height: 1,
-    backgroundColor: '#12261A',
-  },
-
-  gridHorizontal50: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '50%',
-    height: 1,
-    backgroundColor: '#172E20',
-  },
-
-  gridHorizontal75: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '75%',
-    height: 1,
-    backgroundColor: '#12261A',
-  },
-
-  centerCrossHorizontal: {
-    position: 'absolute',
-    left: '47%',
-    right: '47%',
-    top: '50%',
-    height: 1,
-    backgroundColor: '#294635',
-    opacity: 0.5,
-  },
-
-  centerCrossVertical: {
-    position: 'absolute',
-    top: '47%',
-    bottom: '47%',
-    left: '50%',
-    width: 1,
-    backgroundColor: '#294635',
-    opacity: 0.5,
-  },
-
-  topHeader: {
-    position: 'absolute',
-    top: 12,
-    left: 14,
-    right: 14,
-    zIndex: 30,
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
 
-  routeTitle: {
+  title: {
     color: colors.primary,
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 1.5,
+    fontFamily: 'PressStart2P',
+    fontSize: 9,
   },
 
-  routeSubtitle: {
-    marginTop: 2,
+  subtitle: {
+    marginTop: 5,
     color: '#587060',
-    fontSize: 7,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    fontFamily: 'VT323',
+    fontSize: 14,
   },
 
-  statusBadge: {
+  status: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderWidth: 1,
+    borderRadius: 6,
   },
 
   statusLive: {
@@ -948,57 +1441,83 @@ const styles = StyleSheet.create({
     borderColor: '#31553D',
   },
 
-  statusPaused: {
-    backgroundColor: '#1A160A',
-    borderColor: '#58491D',
+  statusIdle: {
+    backgroundColor: '#0D1510',
+    borderColor: '#243A2C',
   },
 
   statusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginRight: 5,
+    marginRight: 6,
   },
 
   statusDotLive: {
     backgroundColor: colors.primary,
   },
 
-  statusDotPaused: {
-    backgroundColor: '#D6B84D',
+  statusDotIdle: {
+    backgroundColor: '#587060',
   },
 
   statusText: {
-    fontSize: 7,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontFamily: 'PressStart2P',
+    fontSize: 6,
   },
 
   statusTextLive: {
     color: colors.primary,
   },
 
-  statusTextPaused: {
-    color: '#D6B84D',
+  statusTextIdle: {
+    color: '#7C9182',
   },
 
-  routeSegment: {
+
+  /* viewport */
+
+  viewport: {
+    flex: 1,
+    overflow: 'hidden',
+    backgroundColor: '#06100A',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#1C3325',
+  },
+
+  gridV: {
     position: 'absolute',
-    height: 5,
-    borderRadius: 3,
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: '#12261A',
+  },
+
+  gridH: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: '#12261A',
+  },
+
+
+  /* route */
+
+  segment: {
+    position: 'absolute',
+    height: LINE_WIDTH,
+    borderRadius: LINE_WIDTH / 2,
     backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.65,
-    shadowRadius: 5,
-    elevation: 4,
     transformOrigin: 'left center',
   },
 
   distanceMarker: {
     position: 'absolute',
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#0B1710',
     borderWidth: 1,
     borderColor: '#587060',
@@ -1008,8 +1527,8 @@ const styles = StyleSheet.create({
 
   distanceMarkerText: {
     color: '#B9C9BD',
-    fontSize: 7,
-    fontWeight: '900',
+    fontFamily: 'VT323',
+    fontSize: 13,
   },
 
   startMarker: {
@@ -1017,18 +1536,35 @@ const styles = StyleSheet.create({
     width: MARKER_SIZE,
     height: MARKER_SIZE,
     borderRadius: MARKER_SIZE / 2,
-    backgroundColor: '#111',
+    backgroundColor: '#111111',
     borderWidth: 2,
     borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 15,
   },
 
   startMarkerText: {
     color: '#FFFFFF',
-    fontSize: 8,
-    fontWeight: '900',
+    fontFamily: 'PressStart2P',
+    fontSize: 6,
+  },
+
+  finishMarker: {
+    position: 'absolute',
+    width: MARKER_SIZE,
+    height: MARKER_SIZE,
+    borderRadius: MARKER_SIZE / 2,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  finishMarkerText: {
+    color: '#101010',
+    fontFamily: 'PressStart2P',
+    fontSize: 6,
   },
 
   currentPosition: {
@@ -1039,30 +1575,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderWidth: 3,
     borderColor: '#FFFFFF',
-    zIndex: 20,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    elevation: 8,
   },
 
-  positionPulseOuter: {
+  pulseHolder: {
     position: 'absolute',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
-    borderColor: colors.primary,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    opacity: 0.35,
   },
 
-  positionPulseInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
+  pulse: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(183,255,60,0.15)',
   },
 
   directionArrow: {
@@ -1071,7 +1600,6 @@ const styles = StyleSheet.create({
     height: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 25,
   },
 
   arrowTriangle: {
@@ -1083,16 +1611,20 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderBottomColor: '#FFFFFF',
-    transform: [{ translateY: -13 }],
+    transform: [{ translateY: -15 }],
   },
+
+
+  /* empty */
 
   emptyState: {
     position: 'absolute',
-    top: '50%',
+    top: 0,
+    bottom: 0,
     left: 20,
     right: 20,
-    transform: [{ translateY: -45 }],
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
   targetIcon: {
@@ -1130,106 +1662,113 @@ const styles = StyleSheet.create({
 
   emptyTitle: {
     color: '#B7C8BC',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontFamily: 'PressStart2P',
+    fontSize: 8,
   },
 
   emptySubtitle: {
-    marginTop: 5,
+    marginTop: 8,
     color: '#64796B',
-    fontSize: 9,
-    fontWeight: '700',
+    fontFamily: 'VT323',
+    fontSize: 15,
     textAlign: 'center',
   },
 
-  distanceCard: {
+
+  /* controls */
+
+  controls: {
     position: 'absolute',
-    left: 12,
-    top: 55,
-    zIndex: 25,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    backgroundColor: 'rgba(7,16,11,0.94)',
+    top: 0,
+    bottom: 0,
+    right: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  controlButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#294635',
+    backgroundColor: 'rgba(7,16,11,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  distanceLabel: {
-    color: '#64796B',
-    fontSize: 7,
-    fontWeight: '900',
-    letterSpacing: 1,
+  controlPressed: {
+    opacity: 0.6,
   },
 
-  distanceValue: {
-    marginTop: 2,
-    color: '#E1ECE4',
-    fontSize: 15,
-    fontWeight: '900',
+  controlText: {
+    color: colors.primary,
+    fontFamily: 'PressStart2P',
+    fontSize: 11,
   },
+
+  zoomLabel: {
+    color: '#708477',
+    fontFamily: 'VT323',
+    fontSize: 13,
+    marginVertical: 3,
+  },
+
+  fitButton: {
+    marginTop: 6,
+  },
+
+  fitButtonActive: {
+    borderColor: colors.primary,
+  },
+
+  fitText: {
+    color: '#708477',
+    fontFamily: 'PressStart2P',
+    fontSize: 6,
+  },
+
+  fitTextActive: {
+    color: colors.primary,
+  },
+
+
+  /* bottom */
 
   bottomPanel: {
-    position: 'absolute',
-    left: 10,
-    right: 10,
-    bottom: 10,
-    zIndex: 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingVertical: 8,
-    backgroundColor: 'rgba(7,16,11,0.94)',
-    borderWidth: 1,
-    borderColor: '#1C3325',
+    paddingVertical: 9,
+    paddingHorizontal: 6,
   },
 
-  bottomMetric: {
-    minWidth: 65,
+  metric: {
+    flex: 1,
     alignItems: 'center',
   },
 
   metricLabel: {
     color: '#607669',
-    fontSize: 7,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontFamily: 'PressStart2P',
+    fontSize: 5,
   },
 
   metricValue: {
-    marginTop: 2,
+    marginTop: 5,
     color: '#DCE8DF',
-    fontSize: 10,
-    fontWeight: '900',
+    fontFamily: 'VT323',
+    fontSize: 17,
+  },
+
+  metricValueHighlight: {
+    color: colors.primary,
   },
 
   metricDivider: {
     width: 1,
-    height: 25,
+    height: 24,
     backgroundColor: '#294635',
   },
 
-  scaleContainer: {
-    position: 'absolute',
-    right: 12,
-    bottom: 58,
-    zIndex: 25,
-    alignItems: 'center',
-  },
-
-  scaleLine: {
-    width: 45,
-    height: 3,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#7C9182',
-  },
-
-  scaleText: {
-    marginTop: 3,
-    color: '#708477',
-    fontSize: 7,
-    fontWeight: '800',
-  },
 });

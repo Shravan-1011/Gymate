@@ -46,6 +46,13 @@ import {
 export const POKEBALL_CATALOG: PokeballConfig[] = [
 
   {
+    type: POKEBALL_TYPE.JESTER_BALL,
+    displayName: 'Jester Ball',
+    shardCost: 4,
+    catchRule: 'jester_ball',
+  },
+
+  {
     type: POKEBALL_TYPE.POKE_BALL,
     displayName: 'Poké Ball',
     shardCost: 3,

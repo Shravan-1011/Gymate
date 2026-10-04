@@ -1531,6 +1531,9 @@ export const POKEBALL_ICON_REGISTRY: Record<
   string,
   ImageSourcePropType
 > = {
+  jester_ball: require(
+  './pokeballs/JESTERBALL.png'
+),
   poke_ball: require('./pokeballs/POKEBALL.png'),
   great_ball: require('./pokeballs/GREATBALL.png'),
   ultra_ball: require('./pokeballs/ULTRABALL.png'),

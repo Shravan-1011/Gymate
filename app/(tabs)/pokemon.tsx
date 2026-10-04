@@ -254,6 +254,28 @@ export default function PokemonScreen() {
     loadState();
   }
 
+  async function handleDevPokemonXP() {
+  if (!profile?.id) {
+    return;
+  }
+
+  try {
+    await awardXP(
+      profile.id,
+      500,
+      'DEV_POKEMON_XP',
+      new Date().toISOString()
+    );
+
+    await loadState();
+  } catch (error) {
+    console.error(
+      '[POKEMON DEV] Failed to grant 500 XP:',
+      error
+    );
+  }
+}
+
   /*
    * ======================================
    * LOADING
@@ -508,6 +530,21 @@ export default function PokemonScreen() {
           </Text>
         </PixelCard>
       </View>
+
+      {/* ================================
+    DEV CONTROLS
+    ================================ */}
+
+{/* <View style={styles.devXpContainer}>
+  <Pressable
+    style={styles.devButton}
+    onPress={handleDevPokemonXP}
+  >
+    <Text style={styles.devButtonText}>
+      DEV: +500 POKÉMON XP
+    </Text>
+  </Pressable>
+</View> */}
 
       {/* ================================
           TEAM

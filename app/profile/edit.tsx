@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 
 import {
@@ -21,6 +22,11 @@ import {
   spacing,
 } from '../../constants/theme';
 
+import {
+  getOrCreateTodayNutrition,
+  updateNutritionGoals,
+} from '../../services/dietService';
+
 const FITNESS_GOALS = [
   'BUILD MUSCLE',
   'LOSE FAT',
@@ -35,8 +41,175 @@ const ACTIVITY_LEVELS = [
   'ADVANCED',
 ];
 
+/*
+ * ========================================
+ * NUTRITION CALCULATION
+ * ========================================
+ */
+
+function roundToNearest(
+  value: number,
+  nearest: number
+): number {
+  return Math.round(
+    value / nearest
+  ) * nearest;
+}
+
+function getActivityMultiplier(
+  activityLevel: string | null
+): number {
+  switch (
+    activityLevel?.toUpperCase()
+  ) {
+    case 'ADVANCED':
+      return 1.60;
+
+    case 'INTERMEDIATE':
+      return 1.50;
+
+    case 'BEGINNER':
+      return 1.40;
+
+    default:
+      return 1.40;
+  }
+}
+
+function getCalorieAdjustment(
+  fitnessGoal: string | null
+): number {
+  switch (
+    fitnessGoal?.toUpperCase()
+  ) {
+    case 'LOSE FAT':
+      return -300;
+
+    case 'BUILD MUSCLE':
+      return 250;
+
+    case 'GET STRONGER':
+      return 150;
+
+    case 'IMPROVE FITNESS':
+      return 0;
+
+    case 'MAINTAIN':
+      return 0;
+
+    default:
+      return 0;
+  }
+}
+
+function getProteinMultiplier(
+  fitnessGoal: string | null
+): number {
+  switch (
+    fitnessGoal?.toUpperCase()
+  ) {
+    case 'LOSE FAT':
+      return 1.8;
+
+    case 'BUILD MUSCLE':
+      return 1.8;
+
+    case 'GET STRONGER':
+      return 1.8;
+
+    case 'IMPROVE FITNESS':
+      return 1.6;
+
+    case 'MAINTAIN':
+      return 1.6;
+
+    default:
+      return 1.6;
+  }
+}
+
+function calculateNutritionGoals(
+  age: number | null,
+  heightCm: number | null,
+  weightKg: number | null,
+  fitnessGoal: string | null,
+  activityLevel: string | null
+) {
+  /*
+   * If height or weight is missing,
+   * use the existing Diet defaults.
+   */
+  if (
+    weightKg == null ||
+    heightCm == null
+  ) {
+    return {
+      calorieGoal: 2000,
+      proteinGoal: 120,
+    };
+  }
+
+  const safeAge =
+    age ?? 25;
+
+  /*
+   * BMR
+   *
+   * Profile does not currently store
+   * biological sex, so we use the same
+   * midpoint formula used by Gymate.
+   */
+  const bmr =
+    (10 * weightKg) +
+    (6.25 * heightCm) -
+    (5 * safeAge) -
+    78;
+
+  const maintenanceCalories =
+    bmr *
+    getActivityMultiplier(
+      activityLevel
+    );
+
+  const calorieGoal =
+    roundToNearest(
+      Math.max(
+        1200,
+        maintenanceCalories +
+          getCalorieAdjustment(
+            fitnessGoal
+          )
+      ),
+      50
+    );
+
+  const proteinGoal =
+    roundToNearest(
+      Math.max(
+        60,
+        weightKg *
+          getProteinMultiplier(
+            fitnessGoal
+          )
+      ),
+      5
+    );
+
+  return {
+    calorieGoal,
+    proteinGoal,
+  };
+}
+
+/*
+ * ========================================
+ * SCREEN
+ * ========================================
+ */
+
 export default function EditProfileScreen() {
   const {
+    profile,
     profileDetails,
     updateProfileDetails,
   } = useProfile();
@@ -110,13 +283,17 @@ export default function EditProfileScreen() {
     }
 
     const parsedAge =
-      age.trim() ? Number(age) : null;
+      age.trim()
+        ? Number(age)
+        : null;
 
     if (
       parsedAge !== null &&
-      (!Number.isInteger(parsedAge) ||
+      (
+        !Number.isInteger(parsedAge) ||
         parsedAge < 10 ||
-        parsedAge > 100)
+        parsedAge > 100
+      )
     ) {
       setError(
         'PLEASE ENTER A VALID AGE.'
@@ -131,9 +308,11 @@ export default function EditProfileScreen() {
 
     if (
       parsedHeight !== null &&
-      (!Number.isFinite(parsedHeight) ||
+      (
+        !Number.isFinite(parsedHeight) ||
         parsedHeight < 80 ||
-        parsedHeight > 250)
+        parsedHeight > 250
+      )
     ) {
       setError(
         'PLEASE ENTER A VALID HEIGHT.'
@@ -148,9 +327,11 @@ export default function EditProfileScreen() {
 
     if (
       parsedWeight !== null &&
-      (!Number.isFinite(parsedWeight) ||
+      (
+        !Number.isFinite(parsedWeight) ||
         parsedWeight < 20 ||
-        parsedWeight > 400)
+        parsedWeight > 400
+      )
     ) {
       setError(
         'PLEASE ENTER A VALID WEIGHT.'
@@ -175,22 +356,133 @@ export default function EditProfileScreen() {
     try {
       setIsSaving(true);
 
+      /*
+       * =====================================
+       * CHECK NUTRITION CHANGES
+       * =====================================
+       *
+       * Compare against the OLD profile
+       * BEFORE saving the new profile.
+       *
+       * Trainer name alone does NOT count.
+       */
+      const nutritionSettingsChanged =
+        profileDetails?.age !== parsedAge ||
+        profileDetails?.heightCm !== parsedHeight ||
+        profileDetails?.weightKg !== parsedWeight ||
+        profileDetails?.fitnessGoal !== fitnessGoal ||
+        profileDetails?.activityLevel !== activityLevel;
+
+      /*
+       * =====================================
+       * SAVE PROFILE
+       * =====================================
+       */
       await updateProfileDetails({
         displayName:
           trimmedDisplayName,
 
-        age: parsedAge,
+        age:
+          parsedAge,
 
-        heightCm: parsedHeight,
+        heightCm:
+          parsedHeight,
 
-        weightKg: parsedWeight,
+        weightKg:
+          parsedWeight,
 
         fitnessGoal,
-
         activityLevel,
       });
 
+      /*
+       * =====================================
+       * UPDATE TODAY'S DIET GOALS
+       * =====================================
+       *
+       * Only happens when a nutrition-related
+       * Profile setting actually changed.
+       *
+       * Uses profile.id, which is the same
+       * profile ID used by the Diet screen.
+       */
+      if (
+        nutritionSettingsChanged &&
+        profile?.id
+      ) {
+        const profileId =
+          profile.id;
+
+        /*
+         * Calculate from the NEW values
+         * entered in this form.
+         */
+        const goals =
+          calculateNutritionGoals(
+            parsedAge,
+            parsedHeight,
+            parsedWeight,
+            fitnessGoal,
+            activityLevel
+          );
+
+        /*
+         * Make sure today's nutrition
+         * record exists.
+         *
+         * Existing records are NOT reset.
+         */
+        const todayNutrition =
+          await getOrCreateTodayNutrition(
+            profileId
+          );
+
+        /*
+         * Profile nutrition settings changed,
+         * so explicitly overwrite today's
+         * calorie and protein targets.
+         */
+        const updatedNutrition =
+          await updateNutritionGoals(
+            profileId,
+            todayNutrition.activityDate,
+            {
+              calorieGoal:
+                goals.calorieGoal,
+
+              proteinGoal:
+                goals.proteinGoal,
+            }
+          );
+
+        /*
+         * Never silently pretend the update
+         * succeeded if the database update
+         * returned null.
+         */
+        if (!updatedNutrition) {
+          throw new Error(
+            'FAILED_TO_UPDATE_NUTRITION_GOALS'
+          );
+        }
+
+        console.log(
+          '[GYMATE] PROFILE NUTRITION UPDATED',
+          {
+            calorieGoal:
+              goals.calorieGoal,
+
+            proteinGoal:
+              goals.proteinGoal,
+
+            activityDate:
+              todayNutrition.activityDate,
+          }
+        );
+      }
+
       router.back();
+
     } catch (error) {
       console.error(
         'Failed to update profile:',
@@ -208,6 +500,12 @@ export default function EditProfileScreen() {
           case 'NOT_AUTHENTICATED':
             setError(
               'NO ACTIVE PROFILE FOUND.'
+            );
+            break;
+
+          case 'FAILED_TO_UPDATE_NUTRITION_GOALS':
+            setError(
+              'PROFILE SAVED, BUT DAILY NUTRITION GOALS COULD NOT BE UPDATED.'
             );
             break;
 
@@ -265,6 +563,7 @@ export default function EditProfileScreen() {
         <Text
           style={[
             styles.optionText,
+
             selected &&
               styles.optionTextSelected,
           ]}

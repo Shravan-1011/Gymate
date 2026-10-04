@@ -25,7 +25,7 @@ import { WorkoutProvider } from '../context/WorkoutContext';
 import { ProfileProvider } from '../context/ProfileContext';
 import { SoundProvider } from '../context/SoundContext';
 import { MusicProvider } from '../context/MusicContext';
-
+import PokemonEvolutionHost from '../components/pokemon/PokemonEvolutionHost';
 
 import '../tasks/runningLocationTask';
 
@@ -472,6 +472,7 @@ export default function RootLayout() {
 
               </Stack>
 
+                  <PokemonEvolutionHost />
             </MusicProvider>
 
           </SoundProvider>
