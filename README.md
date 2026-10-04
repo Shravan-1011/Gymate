@@ -359,95 +359,93 @@ The goal is to make Gymate feel like a **fitness application with a game layer**
 
 ---
 
-#  Screenshots
+# Screenshots
 
-##  Home
+## Home
 
 The Home screen provides a quick overview of the user's daily progress and current Pokémon partner.
 
-![Gymate Home](docs/screenshots/home-screen.jpeg)
+<img src="docs/screenshots/home-screen.jpeg" width="180">
 
 ---
 
-##  Training
+## Training
 
 The Training section provides access to workouts, workout history, and training progress.
 
-![Gymate Training](docs/screenshots/train-screen.jpeg)
+<img src="docs/screenshots/train-screen.jpeg" width="180">
 
 ---
 
-##  Training Progress
+## Training Progress
 
 Review training statistics, workout volume, and progress over time.
 
-![Training Progress](docs/screenshots/training-progress.jpeg)
+<img src="docs/screenshots/training-progress.jpeg" width="180">
 
 ---
 
-##  Diet
+## Diet
 
 Track daily calories, protein, water intake, food, and nutrition goals.
 
-![Gymate Diet](docs/screenshots/diet-screen.jpeg)
+<img src="docs/screenshots/diet-screen.jpeg" width="180">
 
 ---
 
-##  Step Counter
+## Step Counter
 
 Track daily steps and earn progression through activity.
 
-![Step Counter](docs/screenshots/step-counter.jpeg)
+<img src="docs/screenshots/step-counter.jpeg" width="180">
 
 ---
 
-##  Running
+## Running
 
 Track running activity using GPS and review completed runs.
 
-![Run Details](docs/screenshots/run-details.jpeg)
+<img src="docs/screenshots/run-details.jpeg" width="180">
 
 ---
 
-##  Pokémon
+## Pokémon
 
 The Pokémon section provides access to the user's Pokémon journey and collection.
 
-![Pokémon Screen](docs/screenshots/pokemon-screen.jpeg)
+<img src="docs/screenshots/pokemon-screen.jpeg" width="180">
 
 ---
 
-##  Pokémon Collection
+## Pokémon Collection
 
 Browse collected Pokémon and manage the collection.
 
-![Pokémon List](docs/screenshots/pokemon-list.jpeg)
+<img src="docs/screenshots/pokemon-list.jpeg" width="180">
 
 ---
 
-##  Pokémon Evolution
+## Pokémon Evolution
 
 Pokémon evolution has its own dedicated visual sequence with animation and audio.
 
-![Pokémon Evolution](docs/screenshots/pokemon-evolution.jpeg)
+<img src="docs/screenshots/pokemon-evolution.jpeg" width="180">
 
 ---
 
-##  Achievements & Gym Badges
+## Achievements & Gym Badges
 
 Complete achievements and collect Gym Badges.
 
-![Achievements](docs/screenshots/achievements.jpeg)
+<img src="docs/screenshots/achievements.jpeg" width="180">
 
 ---
 
-##  Trainer Profile
+## Trainer Profile
 
 The Trainer Profile combines personal fitness information, Trainer XP, Pokédex progress, and Gym Badges.
 
-![Trainer Profile](docs/screenshots/profile-screen.jpeg)
-
----
+<img src="docs/screenshots/profile-screen.jpeg" width="180">
 
 #  Tech Stack
 
