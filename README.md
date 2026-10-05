@@ -46,7 +46,7 @@ The sample profile can be used to check things such as:
 -  Running history and run details
 -  Nutrition and diet tracking
 
-**[📥 Download Sample Profile](docs/Gymate_test_2026-10-04.gymate)**
+**[📥 Download Sample Profile](https://github.com/Shravan-1011/Gymate/releases/tag/v1-sample)**
 
 > **How to use:** Install the Demo APK first, then when in the create profile section click on restore backup and then select the downloaded sample profile then enter the new password whatever you want and click restore backup and voila you are on the sample backup.   !!!!The downloaded file should have a .gymate extension and not .txt or anyother extension!!!!
 
