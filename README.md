@@ -14,13 +14,13 @@ The goal of Gymate is to make consistent fitness more engaging by adding a progr
 
 ##  Download
 
-### Demo APK
+### Gymate APK
 
 The recommended version for trying Gymate.
 
-The Demo build contains a prepared sample profile with existing workout, activity, Pokémon, progression, and achievement data so the implemented systems can be explored immediately.
+The  build contains every feature exluding the developer button in pokemon section so you can use this as your main app.
 
-**[⬇️ Download Gymate Demo APK](https://github.com/Shravan-1011/Gymate/releases/tag/v1)**
+**[⬇️ Download Gymate APK](https://github.com/Shravan-1011/Gymate/releases/tag/v1)**
 
 ### Developer APK
 
